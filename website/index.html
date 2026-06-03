@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&N Automobile - Premium Vehicle Imports & Logistics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container">
+      <div class="logo">
+        <div class="logo-icon">
+          <i data-lucide="gauge"></i>
+        </div>
+        <span class="logo-text">D&N <span>Automobile</span></span>
+      </div>
+      <nav class="nav-links">
+        <a href="#home">Home</a>
+        <a href="#process">Import Process</a>
+        <a href="#catalog">Catalog</a>
+        <a href="#services">Services</a>
+        <a href="#contact" class="btn-nav">Get a Quote</a>
+      </nav>
+      <button class="menu-toggle" id="menuToggle">
+        <i data-lucide="menu"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section id="home" class="hero">
+    <div class="hero-overlay"></div>
+    <div class="container hero-content">
+      <span class="badge-hero">Unmatched Quality & Service</span>
+      <h1 class="hero-title">Direct Vehicle Imports <br><span>To Sri Lanka</span></h1>
+      <p class="hero-subtitle">Experience a transparent, secure, and hassle-free vehicle importing lifecycle. From auction purchase to port clearance and RMV registration, we handle everything.</p>
+      <div class="hero-actions">
+        <a href="#catalog" class="btn btn-primary">Browse Catalog</a>
+        <a href="#process" class="btn btn-secondary">Learn Our Process</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Process Section -->
+  <section id="process" class="process">
+    <div class="container">
+      <div class="section-header">
+        <span class="sub-title">How It Works</span>
+        <h2 class="section-title">The Importation Roadmap</h2>
+        <p class="section-desc">We make direct importing easy and transparent with five structured, tracked milestones.</p>
+      </div>
+
+      <div class="process-grid">
+        <div class="process-card">
+          <div class="step-num">01</div>
+          <div class="step-icon"><i data-lucide="file-question"></i></div>
+          <h3>Inquiry & Model Selection</h3>
+          <p>Submit your preferred specifications. We select matching vehicles directly from premier Japanese and European auctions.</p>
+        </div>
+        <div class="process-card">
+          <div class="step-num">02</div>
+          <div class="step-icon"><i data-lucide="file-text"></i></div>
+          <h3>Quotation & Agreement</h3>
+          <p>Receive a comprehensive CIF cost breakdown. Lock in pricing with a secure digital import agreement.</p>
+        </div>
+        <div class="process-card">
+          <div class="step-num">03</div>
+          <div class="step-icon"><i data-lucide="ship"></i></div>
+          <h3>Logistics & Shipping</h3>
+          <p>We handle export permits, JAAI inspections, shipping bookings, and provide real-time vessel tracking.</p>
+        </div>
+        <div class="process-card">
+          <div class="step-num">04</div>
+          <div class="step-icon"><i data-lucide="shield-check"></i></div>
+          <h3>Customs Clearance</h3>
+          <p>Our dedicated port agents manage custom declarations (CUSDEC), tax evaluation, and bank releases.</p>
+        </div>
+        <div class="process-card">
+          <div class="step-num">05</div>
+          <div class="step-icon"><i data-lucide="key-round"></i></div>
+          <h3>DMT Registration & Delivery</h3>
+          <p>We process the RMV registration plate, complete detailed quality checks, and deliver your vehicle key.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Catalog Section -->
+  <section id="catalog" class="catalog">
+    <div class="container">
+      <div class="section-header">
+        <span class="sub-title">Popular Models</span>
+        <h2 class="section-title">Direct Import Fleet Templates</h2>
+        <p class="section-desc">Explore default cost estimations for popular vehicles imported to Sri Lanka.</p>
+      </div>
+
+      <div class="catalog-grid" id="catalogGrid">
+        <!-- Will be populated dynamically via JavaScript or fallback to defaults -->
+        <div class="catalog-card">
+          <div class="catalog-img bg-aqua"></div>
+          <div class="catalog-body">
+            <span class="cat-badge">Toyota</span>
+            <h3>Toyota Aqua (S Grade)</h3>
+            <p>1500cc Hybrid | Fuel efficient hatchback. Default imports list.</p>
+            <div class="cat-price">Est. LKR 4,230,000</div>
+            <a href="#contact" class="btn btn-card" onclick="prefillForm('Toyota Aqua (S Grade)')">Request Quote</a>
+          </div>
+        </div>
+        <div class="catalog-card">
+          <div class="catalog-img bg-vezel"></div>
+          <div class="catalog-body">
+            <span class="cat-badge">Honda</span>
+            <h3>Honda Vezel (Z Grade)</h3>
+            <p>1500cc Hybrid SUV | Stylish and spacious crossover utility vehicle.</p>
+            <div class="cat-price">Est. LKR 8,085,000</div>
+            <a href="#contact" class="btn btn-card" onclick="prefillForm('Honda Vezel (Z Grade)')">Request Quote</a>
+          </div>
+        </div>
+        <div class="catalog-card">
+          <div class="catalog-img bg-premio"></div>
+          <div class="catalog-body">
+            <span class="cat-badge">Toyota</span>
+            <h3>Toyota Premio (F Grade)</h3>
+            <p>1800cc Sedan | Luxury family sedan with premium comfort cabin.</p>
+            <div class="cat-price">Est. LKR 7,045,000</div>
+            <a href="#contact" class="btn btn-card" onclick="prefillForm('Toyota Premio (F Grade)')">Request Quote</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services Section -->
+  <section id="services" class="services">
+    <div class="container">
+      <div class="section-header">
+        <span class="sub-title">What We Offer</span>
+        <h2 class="section-title">Our Services & Solutions</h2>
+        <p class="section-desc">We offer end-to-end import solutions backed by transparency and reliable partnerships.</p>
+      </div>
+
+      <div class="services-grid">
+        <div class="service-item">
+          <div class="service-icon"><i data-lucide="gantt-chart-square"></i></div>
+          <h3>Auction Purchasing</h3>
+          <p>Access direct auction bidding networks in Japan and Europe. Bid on verified grading reports.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i data-lucide="anchor"></i></div>
+          <h3>Export Inspections</h3>
+          <p>We run complete JAAI, JEVIC, and odometer inspections prior to shipping for total compliance verification.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i data-lucide="file-spreadsheet"></i></div>
+          <h3>Customs Brokerage</h3>
+          <p>Hassle-free customs clearance handling including classification, valuation, and swift port retrieval.</p>
+        </div>
+        <div class="service-item">
+          <div class="service-icon"><i data-lucide="landmark"></i></div>
+          <h3>LC / Bank Facilities</h3>
+          <p>Consultation and support to set up Letters of Credit (LC) and bank release papers correctly.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact/Inquiry Section -->
+  <section id="contact" class="contact">
+    <div class="container">
+      <div class="contact-box">
+        <div class="contact-info">
+          <h2>Get a Custom Import <br>Quotation Today</h2>
+          <p>Submit your contact info and preferred vehicle details. Our CRM team will draft a detailed quotation profile for your approval.</p>
+          <div class="info-list">
+            <div class="info-item">
+              <i data-lucide="phone"></i>
+              <span>+94 77 123 4567</span>
+            </div>
+            <div class="info-item">
+              <i data-lucide="mail"></i>
+              <span>info@dnautomobile.com</span>
+            </div>
+            <div class="info-item">
+              <i data-lucide="map-pin"></i>
+              <span>No. 120, Galle Road, Colombo 03, Sri Lanka</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="contact-form-wrap">
+          <form id="leadForm" class="contact-form">
+            <div class="form-group">
+              <label for="name">Your Name</label>
+              <input type="text" id="name" required placeholder="e.g. Kasun Perera">
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <input type="email" id="email" required placeholder="e.g. kasun@example.com">
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <input type="text" id="phone" placeholder="e.g. 0771234567">
+            </div>
+            <div class="form-group">
+              <label for="message">Message / Vehicle Requirements</label>
+              <textarea id="message" rows="4" required placeholder="Describe your preferred vehicle model, year, grade, and color..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="btnSubmit">
+              <span>Send Inquiry</span> <i data-lucide="send"></i>
+            </button>
+          </form>
+          <div id="formSuccess" class="form-status status-success" style="display: none;">
+            <i data-lucide="check-circle-2"></i>
+            <div>
+              <h4>Inquiry Sent Successfully!</h4>
+              <p>Our sales team will register your lead profile and get back to you shortly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 D&N Automobile. All Rights Reserved. Built with Premium Quality.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Prefill form helper
+    function prefillForm(vehicleName) {
+      document.getElementById('message').value = "I am interested in importing a " + vehicleName + ". Please send a detailed quotation breakdown.";
+    }
+
+    // Lead Form submission via AJAX
+    document.getElementById('leadForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const phone = document.getElementById('phone').value;
+      const message = document.getElementById('message').value;
+
+      const btnSubmit = document.getElementById('btnSubmit');
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = 'Sending...';
+
+      try {
+        const response = await fetch('../backend/api/leads.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, email, phone, message })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success') {
+          document.getElementById('leadForm').style.display = 'none';
+          document.getElementById('formSuccess').style.display = 'flex';
+          lucide.createIcons();
+        } else {
+          alert('Failed to submit inquiry: ' + (data.error || 'Server error'));
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = '<span>Send Inquiry</span> <i data-lucide="send"></i>';
+          lucide.createIcons();
+        }
+      } catch (err) {
+        alert('Connection error. Please try again.');
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = '<span>Send Inquiry</span> <i data-lucide="send"></i>';
+        lucide.createIcons();
+      }
+    });
+
+    // Simple mobile menu toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const navLinks = document.querySelector('.nav-links');
+    menuToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('active');
+    });
+  </script>
+</body>
+</html>
