@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-glass rounded-2xl;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 focus:ring-brand-500; }
+  .btn-secondary { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200 focus:ring-slate-400; }
+  .btn-danger { @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-400; }
+  .btn-ghost { @apply btn bg-transparent text-slate-600 hover:bg-slate-100; }
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition;
+  }
+  .label { @apply block text-sm font-medium text-slate-700 mb-1.5; }
+  .card { @apply bg-white rounded-2xl border border-slate-200 shadow-sm; }
+  .table-wrap { @apply card overflow-hidden; }
+  .table { @apply w-full text-sm; }
+  .table thead { @apply bg-slate-50 text-slate-600 uppercase text-xs tracking-wider; }
+  .table th, .table td { @apply px-4 py-3 text-left; }
+  .table tbody tr { @apply border-t border-slate-100 hover:bg-slate-50/60 transition; }
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium; }
+  .badge-pending { @apply badge bg-amber-100 text-amber-700; }
+  .badge-paid { @apply badge bg-emerald-100 text-emerald-700; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }

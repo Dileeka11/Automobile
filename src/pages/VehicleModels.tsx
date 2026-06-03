@@ -1,0 +1,146 @@
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { useDataStore, toast, vehicleTotal } from '@/store';
+import { VehicleModel } from '@/types';
+import Modal from '@/components/ui/Modal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import EmptyState from '@/components/ui/EmptyState';
+import { formatCurrency } from '@/utils';
+
+const schema = z.object({
+  makeModelId: z.string().min(1, 'Required'),
+  name: z.string().min(1, 'Required'),
+  engineCapacity: z.string().min(1, 'Required'),
+  color: z.string().min(1, 'Required'),
+  grade: z.string().min(1, 'Required'),
+  year: z.coerce.number().min(1980).max(new Date().getFullYear() + 1),
+  mileage: z.coerce.number().min(0),
+  cifValue: z.coerce.number().min(0),
+  lcAmount: z.coerce.number().min(0),
+  ttAmount: z.coerce.number().min(0),
+  taxAmount: z.coerce.number().min(0),
+  serviceCharge: z.coerce.number().min(0),
+  clearingCharge: z.coerce.number().min(0),
+  dmiCharge: z.coerce.number().min(0),
+});
+type FormData = z.infer<typeof schema>;
+
+const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
+
+export default function VehicleModels() {
+  const { vehicleModels, makeModels, addVehicleModel, updateVehicleModel, deleteVehicleModel } = useDataStore();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<VehicleModel | null>(null);
+  const [toDelete, setToDelete] = useState<VehicleModel | null>(null);
+  const [query, setQuery] = useState('');
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
+
+  const openAdd = () => {
+    setEditing(null);
+    reset({ makeModelId: makeModels[0]?.id || '', name: '', engineCapacity: '', color: '', grade: '', year: new Date().getFullYear(), mileage: 0, cifValue: 0, lcAmount: 0, ttAmount: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 });
+    setModalOpen(true);
+  };
+  const openEdit = (v: VehicleModel) => { setEditing(v); reset(v); setModalOpen(true); };
+
+  const onSubmit = (data: FormData) => {
+    if (editing) { updateVehicleModel(editing.id, data); toast.success('Vehicle Model updated'); }
+    else { addVehicleModel(data); toast.success('Vehicle Model added'); }
+    setModalOpen(false);
+  };
+
+  const filtered = vehicleModels.filter((v) => {
+    const make = makeModels.find((m) => m.id === v.makeModelId)?.name || '';
+    return (`${make} ${v.name} ${v.color} ${v.grade} ${v.year}`).toLowerCase().includes(query.toLowerCase());
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-3">
+        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 w-full sm:w-72">
+          <Search className="w-4 h-4 text-slate-400" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search vehicles..." className="bg-transparent outline-none text-sm w-full" />
+        </div>
+        <button onClick={openAdd} className="btn-primary"><Plus className="w-4 h-4" /> Add Vehicle Model</button>
+      </div>
+
+      <div className="table-wrap">
+        {filtered.length === 0 ? <EmptyState title="No vehicle models" /> : (
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead><tr><th>Make</th><th>Model</th><th>Year</th><th>Engine</th><th>Color</th><th>Grade</th><th>CIF</th><th>Total</th><th className="text-right">Actions</th></tr></thead>
+              <tbody>
+                {filtered.map((v) => {
+                  const make = makeModels.find((m) => m.id === v.makeModelId);
+                  return (
+                    <tr key={v.id}>
+                      <td className="font-medium">{make?.name || '—'}</td>
+                      <td>{v.name}</td>
+                      <td>{v.year}</td>
+                      <td className="text-slate-600">{v.engineCapacity}</td>
+                      <td className="text-slate-600">{v.color}</td>
+                      <td className="text-slate-600">{v.grade}</td>
+                      <td>{formatCurrency(v.cifValue)}</td>
+                      <td className="font-semibold text-brand-700">{formatCurrency(vehicleTotal(v))}</td>
+                      <td>
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => openEdit(v)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => setToDelete(v)} className="p-2 rounded-lg hover:bg-red-50 text-red-600"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Vehicle Model' : 'Add Vehicle Model'} size="xl">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Make Model</label>
+              <select {...register('makeModelId')} className="input">
+                {makeModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+              {errors.makeModelId && <p className="text-xs text-red-600 mt-1">{errors.makeModelId.message}</p>}
+            </div>
+            <div>
+              <label className="label">Model Name</label>
+              <input {...register('name')} className="input" placeholder="e.g. Aqua" />
+              {errors.name && <p className="text-xs text-red-600 mt-1">{errors.name.message}</p>}
+            </div>
+            <div><label className="label">Engine Capacity</label><input {...register('engineCapacity')} className="input" placeholder="e.g. 1500cc" /></div>
+            <div><label className="label">Color</label><input {...register('color')} className="input" /></div>
+            <div><label className="label">Grade</label><input {...register('grade')} className="input" /></div>
+            <div><label className="label">Year</label><input type="number" {...register('year')} className="input" /></div>
+            <div><label className="label">Mileage (km)</label><input type="number" {...register('mileage')} className="input" /></div>
+            <div /> {/* spacer */}
+            {numericFields.map((f) => (
+              <div key={f}>
+                <label className="label">{f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
+                <input type="number" step="0.01" {...register(f)} className="input" />
+                {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-primary">{editing ? 'Update' : 'Create'}</button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!toDelete} onClose={() => setToDelete(null)}
+        onConfirm={() => { if (toDelete) { deleteVehicleModel(toDelete.id); toast.success('Vehicle Model deleted'); } }}
+        message={`Delete "${toDelete?.name}"?`}
+      />
+    </div>
+  );
+}
