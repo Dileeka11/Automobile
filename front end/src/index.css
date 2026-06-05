@@ -27,8 +27,9 @@
   .label { @apply block text-sm font-medium text-slate-700 mb-1.5; }
   .card { @apply bg-white rounded-2xl border border-slate-200 shadow-sm; }
   .table-wrap { @apply card overflow-hidden; }
-  .table { @apply w-full text-sm; }
-  .table thead { @apply bg-slate-50 text-slate-600 uppercase text-xs tracking-wider; }
+  .table { @apply w-full text-sm border-collapse; }
+  .table thead th { @apply sticky top-0 bg-slate-50 z-10; }
+  .table thead { @apply text-slate-600 uppercase text-xs tracking-wider; }
   .table th, .table td { @apply px-4 py-3 text-left; }
   .table tbody tr { @apply border-t border-slate-100 hover:bg-slate-50/60 transition; }
   .badge { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium; }

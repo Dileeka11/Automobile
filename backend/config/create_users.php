@@ -29,6 +29,20 @@ try {
         echo "Default admin user already exists.\n";
     }
 
+    // Check if agent user exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = 'agent'");
+    $stmt->execute();
+    $existsAgent = $stmt->fetchColumn();
+
+    if (!$existsAgent) {
+        $hashedPasswordAgent = password_hash('agent123', PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("INSERT INTO users (username, password, name, role) VALUES ('agent', ?, 'Clearing Agent User', 'agent')");
+        $stmt->execute([$hashedPasswordAgent]);
+        echo "Default agent user created successfully.\n";
+    } else {
+        echo "Default agent user already exists.\n";
+    }
+
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }

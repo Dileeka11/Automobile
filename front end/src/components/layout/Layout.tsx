@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import ToastContainer from '@/components/ui/Toast';
@@ -11,22 +11,32 @@ const titles: Record<string, string> = {
   '/vehicle-models': 'Vehicle Models',
   '/quotations': 'Quotations',
   '/invoices': 'Invoices',
+  '/clearing-agents': 'Clearing Agents',
   '/logistics': 'Logistics & Vault',
   '/investors': 'Investors & Split',
   '/reports': 'Accounting & Reports',
+  '/cashbook': 'Corporate Cashbook',
   '/leads': 'CRM Leads',
 };
 
 export default function Layout() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const title = titles[pathname] || 'D&N Automate';
 
+  const currentUser = useDataStore((s) => s.currentUser);
   const fetchData = useDataStore((s) => s.fetchData);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (currentUser?.role === 'agent' && pathname !== '/clearing-agents') {
+      navigate('/clearing-agents', { replace: true });
+    }
+  }, [currentUser, pathname, navigate]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">

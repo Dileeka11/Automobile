@@ -91,13 +91,13 @@ export default function Investors() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold text-slate-950 font-display">Investor Funding & Profit Splits</h2>
           <p className="text-sm text-slate-500">Manage capital partners, record vehicle specific investments, and settle ROI earnings.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <button onClick={() => setIsInvestorModalOpen(true)} className="btn-secondary flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Add Investor
           </button>
@@ -107,15 +107,15 @@ export default function Investors() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Investors Column */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-1 flex flex-col min-h-0 space-y-4">
+          <div className="flex items-center justify-between flex-shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-1.5"><Users className="w-5 h-5 text-brand-600" /> Investors List</h3>
             <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full font-semibold text-slate-500">{investors.length} Total</span>
           </div>
 
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+          <div className="space-y-3 flex-1 overflow-y-auto pr-1">
             {investors.length === 0 ? (
               <div className="card text-center py-8 text-slate-400 italic text-sm">No investors found</div>
             ) : (
@@ -131,14 +131,14 @@ export default function Investors() {
         </div>
 
         {/* Investments Column */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="lg:col-span-2 flex flex-col min-h-0 space-y-4">
+          <div className="flex items-center justify-between flex-shrink-0">
             <h3 className="font-bold text-slate-800 flex items-center gap-1.5"><BadgeDollarSign className="w-5 h-5 text-brand-600" /> Active Investments & Splits</h3>
             <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full font-semibold">{investments.length} Investments</span>
           </div>
 
-          <div className="card overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="card overflow-hidden flex-1 min-h-0 flex flex-col">
+            <div className="overflow-auto flex-1 min-h-0">
               <table className="table w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo } from 'lucide-react';
 import { useDataStore, toast, vehicleTotal } from '@/store';
 import { Invoice } from '@/types';
 import Modal from '@/components/ui/Modal';
@@ -19,6 +19,8 @@ const schema = z.object({
   status: z.enum(['pending', 'paid']),
   isLcComplete: z.boolean().default(false),
   isTtComplete: z.boolean().default(false),
+  etdDate: z.string().optional().nullable(),
+  arrivalDate: z.string().optional().nullable(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -29,16 +31,28 @@ export default function Invoices() {
   const [toDelete, setToDelete] = useState<Invoice | null>(null);
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [query, setQuery] = useState('');
+  
+  const [lcCopyFile, setLcCopyFile] = useState<File | null>(null);
+  const [inspectionCertificateFile, setInspectionCertificateFile] = useState<File | null>(null);
+  const [yardPicturesFiles, setYardPicturesFiles] = useState<File[]>([]);
+  
+  const [pendingDeleteLcCopy, setPendingDeleteLcCopy] = useState(false);
+  const [pendingDeleteInspectionCertificate, setPendingDeleteInspectionCertificate] = useState(false);
+  const [pendingDeleteYardPictureIds, setPendingDeleteYardPictureIds] = useState<number[]>([]);
+  
+  const [includeAttachmentsInView, setIncludeAttachmentsInView] = useState(true);
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false },
+    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false, etdDate: '', arrivalDate: '' },
   });
 
   const selectedQId = useWatch({ control, name: 'quotationId' });
   const advance = useWatch({ control, name: 'advanceAmount' }) || 0;
   const isLcChecked = useWatch({ control, name: 'isLcComplete' }) || false;
   const isTtChecked = useWatch({ control, name: 'isTtComplete' }) || false;
+  const etdVal = useWatch({ control, name: 'etdDate' });
+  const arrivalVal = useWatch({ control, name: 'arrivalDate' });
 
   const selectedQuotation = useMemo(() => quotations.find((q) => q.id === selectedQId), [quotations, selectedQId]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedQuotation?.vehicleModelId), [vehicleModels, selectedQuotation]);
@@ -84,7 +98,13 @@ export default function Invoices() {
 
   const openAdd = () => {
     setEditingInvoice(null);
-    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false });
+    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false, etdDate: '', arrivalDate: '' });
+    setLcCopyFile(null);
+    setInspectionCertificateFile(null);
+    setYardPicturesFiles([]);
+    setPendingDeleteLcCopy(false);
+    setPendingDeleteInspectionCertificate(false);
+    setPendingDeleteYardPictureIds([]);
     setModalOpen(true);
   };
 
@@ -97,7 +117,15 @@ export default function Invoices() {
       status: i.status,
       isLcComplete: !!i.isLcComplete,
       isTtComplete: !!i.isTtComplete,
+      etdDate: i.etdDate || '',
+      arrivalDate: i.arrivalDate || '',
     });
+    setLcCopyFile(null);
+    setInspectionCertificateFile(null);
+    setYardPicturesFiles([]);
+    setPendingDeleteLcCopy(false);
+    setPendingDeleteInspectionCertificate(false);
+    setPendingDeleteYardPictureIds([]);
     setModalOpen(true);
   };
 
@@ -108,7 +136,19 @@ export default function Invoices() {
     if (v) setValue('ttAmount', v.ttAmount);
   };
 
-  const onSubmit = (data: FormData) => {
+  const handleDeleteYardPic = (picId: number) => {
+    setPendingDeleteYardPictureIds((prev) => [...prev, picId]);
+  };
+
+  const handleDeleteLcCopy = () => {
+    setPendingDeleteLcCopy(true);
+  };
+
+  const handleDeleteInspectionCertificate = () => {
+    setPendingDeleteInspectionCertificate(true);
+  };
+
+  const onSubmit = async (data: FormData) => {
     if (!selectedVehicle) { toast.error('Invalid quotation'); return; }
     
     const lcAmountVal = selectedVehicle.lcAmount;
@@ -120,31 +160,62 @@ export default function Invoices() {
     
     const balanceVal = Math.max(0, vehicleTotal(selectedVehicle) - data.advanceAmount - formDeduction);
 
-    if (editingInvoice) {
-      updateInvoice(editingInvoice.id, {
-        quotationId: data.quotationId,
-        ttAmount: data.ttAmount,
-        advanceAmount: data.advanceAmount,
-        balance: balanceVal,
-        status: data.status,
-        isLcComplete: !!data.isLcComplete,
-        isTtComplete: !!data.isTtComplete,
-      });
-      toast.success('Invoice updated');
-    } else {
-      addInvoice({
-        quotationId: data.quotationId,
-        ttAmount: data.ttAmount,
-        advanceAmount: data.advanceAmount,
-        balance: balanceVal,
-        status: data.status,
-        isLcComplete: !!data.isLcComplete,
-        isTtComplete: !!data.isTtComplete,
-      });
-      toast.success('Invoice created');
+    try {
+      if (editingInvoice) {
+        const formData = new FormData();
+        formData.append('quotationId', data.quotationId);
+        formData.append('ttAmount', String(data.ttAmount));
+        formData.append('advanceAmount', String(data.advanceAmount));
+        formData.append('balance', String(balanceVal));
+        formData.append('status', data.status);
+        formData.append('isLcComplete', String(!!data.isLcComplete));
+        formData.append('isTtComplete', String(!!data.isTtComplete));
+        formData.append('etdDate', data.etdDate || '');
+        formData.append('arrivalDate', data.arrivalDate || '');
+
+        if (pendingDeleteLcCopy) {
+          formData.append('deleteLcCopy', 'true');
+        }
+        if (pendingDeleteInspectionCertificate) {
+          formData.append('deleteInspectionCertificate', 'true');
+        }
+        if (pendingDeleteYardPictureIds.length > 0) {
+          formData.append('deleteYardPictureIds', pendingDeleteYardPictureIds.join(','));
+        }
+
+        if (lcCopyFile) {
+          formData.append('lcCopy', lcCopyFile);
+        }
+        if (inspectionCertificateFile) {
+          formData.append('inspectionCertificate', inspectionCertificateFile);
+        }
+        if (yardPicturesFiles.length > 0) {
+          yardPicturesFiles.forEach((file) => {
+            formData.append('yardPictures[]', file);
+          });
+        }
+
+        await updateInvoice(editingInvoice.id, formData);
+        toast.success('Invoice updated');
+      } else {
+        await addInvoice({
+          quotationId: data.quotationId,
+          ttAmount: data.ttAmount,
+          advanceAmount: data.advanceAmount,
+          balance: balanceVal,
+          status: data.status,
+          isLcComplete: !!data.isLcComplete,
+          isTtComplete: !!data.isTtComplete,
+          etdDate: data.etdDate,
+          arrivalDate: data.arrivalDate,
+        });
+        toast.success('Invoice created');
+      }
+      setModalOpen(false);
+      setEditingInvoice(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save invoice');
     }
-    setModalOpen(false);
-    setEditingInvoice(null);
   };
 
   const filtered = invoices.filter((i) => {
@@ -152,12 +223,12 @@ export default function Invoices() {
     return (`${i.id} ${q?.name || ''} ${q?.id || ''}`).toLowerCase().includes(query.toLowerCase());
   });
 
-  const handlePrint = async (i: Invoice) => {
+  const handlePrint = async (i: Invoice, includeAttachments = true) => {
     const q = quotations.find((x) => x.id === i.quotationId);
     const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
     const m = makeModels.find((x) => x.id === q?.makeModelId);
     if (!q || !v || !m) { toast.error('Missing data'); return; }
-    await downloadInvoicePDF({ invoice: i, quotation: q, vehicle: v, make: m });
+    await downloadInvoicePDF({ invoice: i, quotation: q, vehicle: v, make: m, includeAttachments });
     toast.success('PDF downloaded');
   };
 
@@ -209,10 +280,10 @@ export default function Invoices() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
       {/* Reminders Banner */}
       {reminders.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2 flex-shrink-0">
           <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 animate-bounce" />
             Milestone Payment Alerts & Reminders
@@ -227,7 +298,7 @@ export default function Invoices() {
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search invoices..." className="bg-transparent outline-none text-sm w-full" />
@@ -235,9 +306,9 @@ export default function Invoices() {
         <button onClick={openAdd} className="btn-primary"><Plus className="w-4 h-4" /> New Invoice</button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No invoices" /> : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="table">
               <thead>
                 <tr>
@@ -257,26 +328,20 @@ export default function Invoices() {
                 {filtered.map((i) => {
                   const q = quotations.find((x) => x.id === i.quotationId);
                   const days = Math.floor((new Date().getTime() - new Date(i.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-                  const showLcWarning = !i.isLcComplete && days >= 5;
-                  const showTtWarning = !i.isTtComplete && days >= 5;
-
+                  const showWarning = days >= 5 && (!i.isLcComplete || !i.isTtComplete);
                   return (
-                    <tr key={i.id} className={showLcWarning || showTtWarning ? 'bg-red-50/30' : ''}>
-                      <td className="font-mono text-xs">{i.id}</td>
-                      <td className="font-mono text-xs text-slate-500">{i.quotationId}</td>
-                      <td className="font-medium">
-                        <div>{q?.name || '—'}</div>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {showLcWarning && (
-                            <span className="text-[10px] text-red-700 bg-red-100 font-semibold px-1.5 py-0.5 rounded border border-red-200">
-                              ⚠️ Open LC in 2d
-                            </span>
-                          )}
-                          {showTtWarning && (
-                            <span className="text-[10px] text-amber-700 bg-amber-100 font-semibold px-1.5 py-0.5 rounded border border-amber-200">
-                              ⚠️ Collect TT Payment
-                            </span>
-                          )}
+                    <tr key={i.id}>
+                      <td className="font-semibold text-brand-700">
+                        <div className="flex items-center gap-1.5" title={showWarning ? "Milestone payment pending >= 5 days" : undefined}>
+                          {i.id}
+                          {showWarning && <AlertTriangle className="w-3.5 h-3.5 text-amber-600 animate-pulse" />}
+                        </div>
+                      </td>
+                      <td className="font-mono text-xs">{i.quotationId}</td>
+                      <td>
+                        <div>
+                          <p className="font-medium text-slate-800">{q?.name || '—'}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{q?.nic}</p>
                         </div>
                       </td>
                       <td>
@@ -313,7 +378,7 @@ export default function Invoices() {
                         <div className="flex justify-end gap-1">
                           <button onClick={() => togglePaid(i)} className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Toggle paid"><CheckCircle2 className="w-4 h-4" /></button>
                           <button onClick={() => openEdit(i)} className="p-2 rounded-lg hover:bg-slate-100 text-blue-600" title="Edit"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => setViewing(i)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="View"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => { setIncludeAttachmentsInView(true); setViewing(i); }} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600" title="View"><Eye className="w-4 h-4" /></button>
                           <button onClick={() => handlePrint(i)} className="p-2 rounded-lg hover:bg-brand-50 text-brand-600" title="Print"><Printer className="w-4 h-4" /></button>
                           <button onClick={() => setToDelete(i)} className="p-2 rounded-lg hover:bg-red-50 text-red-600" title="Delete"><Trash2 className="w-4 h-4" /></button>
                         </div>
@@ -357,11 +422,11 @@ export default function Invoices() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">TT Amount (LKR)</label>
-              <input type="number" step="0.01" {...register('ttAmount')} className="input" />
+              <input type="number" step="0.01" {...register('ttAmount')} placeholder="Enter TT Amount (e.g. 500000)" className="input" />
             </div>
             <div>
               <label className="label">Advance Amount (LKR)</label>
-              <input type="number" step="0.01" {...register('advanceAmount')} className="input" />
+              <input type="number" step="0.01" {...register('advanceAmount')} placeholder="Enter Advance Amount (e.g. 200000)" className="input" />
             </div>
             <div>
               <label className="label">Status</label>
@@ -392,6 +457,161 @@ export default function Invoices() {
             </div>
           </div>
 
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="text-sm font-bold text-slate-800">Dates Schedule</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label">ETD Date</label>
+                <input 
+                  type="date" 
+                  {...register('etdDate')} 
+                  className={`input ${etdVal ? 'border-red-500 text-red-600 focus:border-red-600 focus:ring-red-600 accent-red-600 font-bold bg-red-50/50' : ''}`} 
+                />
+              </div>
+              <div>
+                <label className="label">Arrival Date</label>
+                <input 
+                  type="date" 
+                  {...register('arrivalDate')} 
+                  className={`input ${arrivalVal ? 'border-red-500 text-red-600 focus:border-red-600 focus:ring-red-600 accent-red-600 font-bold bg-red-50/50' : ''}`} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {editingInvoice && (
+            <div className="border-t pt-4 space-y-4">
+              <h4 className="text-sm font-bold text-slate-800">Attachments & Documents</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">LC Copy (Image/PDF)</label>
+                  {editingInvoice.lcCopyPath && !pendingDeleteLcCopy && (
+                    <div className="mb-2 text-xs flex items-center gap-2">
+                      <span className="text-slate-500">Current LC Copy: </span>
+                      <a 
+                        href={`http://localhost/Automobile/${editingInvoice.lcCopyPath}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-brand-600 hover:underline font-semibold"
+                      >
+                        View Document
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={handleDeleteLcCopy} 
+                        className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
+                    </div>
+                  )}
+                  {editingInvoice.lcCopyPath && pendingDeleteLcCopy && (
+                    <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
+                      <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
+                      <button type="button" onClick={() => setPendingDeleteLcCopy(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
+                        <Undo className="w-3 h-3" /> Undo
+                      </button>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    onChange={(e) => setLcCopyFile(e.target.files?.[0] || null)} 
+                    className="input text-xs" 
+                    accept="image/*,application/pdf"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">Inspection Certificate (Image/PDF)</label>
+                  {editingInvoice.inspectionCertificatePath && !pendingDeleteInspectionCertificate && (
+                    <div className="mb-2 text-xs flex items-center gap-2">
+                      <span className="text-slate-500">Current Certificate: </span>
+                      <a 
+                        href={`http://localhost/Automobile/${editingInvoice.inspectionCertificatePath}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-brand-600 hover:underline font-semibold"
+                      >
+                        View Document
+                      </a>
+                      <button 
+                        type="button" 
+                        onClick={handleDeleteInspectionCertificate} 
+                        className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
+                      >
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
+                    </div>
+                  )}
+                  {editingInvoice.inspectionCertificatePath && pendingDeleteInspectionCertificate && (
+                    <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
+                      <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
+                      <button type="button" onClick={() => setPendingDeleteInspectionCertificate(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
+                        <Undo className="w-3 h-3" /> Undo
+                      </button>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    onChange={(e) => setInspectionCertificateFile(e.target.files?.[0] || null)} 
+                    className="input text-xs" 
+                    accept="image/*,application/pdf"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Yard Pictures (One or more images)</label>
+                
+                {editingInvoice.yardPictures && editingInvoice.yardPictures.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-3">
+                    {editingInvoice.yardPictures.map((pic) => {
+                      const isPendingDelete = pendingDeleteYardPictureIds.includes(pic.id);
+                      return (
+                        <div key={pic.id} className={`relative group border rounded-lg overflow-hidden bg-slate-50 aspect-video ${isPendingDelete ? 'border-red-500 opacity-40' : 'border-slate-200'}`}>
+                          <img 
+                            src={`http://localhost/Automobile/${pic.file_path}`} 
+                            alt="Yard" 
+                            className="w-full h-full object-cover"
+                          />
+                          {isPendingDelete ? (
+                            <button 
+                              type="button"
+                              onClick={() => setPendingDeleteYardPictureIds((prev) => prev.filter((id) => id !== pic.id))}
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-white font-bold text-[10px] gap-1"
+                              title="Undo Delete"
+                            >
+                              <Undo className="w-3.5 h-3.5 text-white" />
+                              <span>Undo</span>
+                            </button>
+                          ) : (
+                            <button 
+                              type="button"
+                              onClick={() => handleDeleteYardPic(pic.id)}
+                              className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-90 hover:opacity-100 shadow"
+                              title="Delete image"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <input 
+                  type="file" 
+                  multiple 
+                  onChange={(e) => setYardPicturesFiles(Array.from(e.target.files || []))} 
+                  className="input text-xs" 
+                  accept="image/*"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
             <button type="submit" className="btn-primary" disabled={!selectedQuotation}><Receipt className="w-4 h-4" /> Save Invoice</button>
@@ -405,7 +625,131 @@ export default function Invoices() {
         const m = makeModels.find((x) => x.id === q?.makeModelId);
         return (
           <Modal open={!!viewing} onClose={() => setViewing(null)} title={`Invoice ${viewing.id}`} size="xl">
-            {q && v && m ? <InvoicePDFViewer invoice={viewing} quotation={q} vehicle={v} make={m} /> : <p>Missing data</p>}
+            {q && v && m ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <InvoicePDFViewer invoice={viewing} quotation={q} vehicle={v} make={m} includeAttachments={includeAttachmentsInView} />
+                </div>
+                <div className="space-y-6">
+                  {/* Document Actions Card */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Print & Download</h3>
+                    
+                    {/* Toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer pb-2 border-b border-dashed border-slate-200 select-none">
+                      <input 
+                        type="checkbox" 
+                        checked={includeAttachmentsInView} 
+                        onChange={(e) => setIncludeAttachmentsInView(e.target.checked)} 
+                        className="rounded text-brand-600 focus:ring-brand-500 h-4 w-4 border-slate-300 cursor-pointer"
+                      />
+                      <span className="text-xs font-semibold text-slate-700">Include attachments in PDF</span>
+                    </label>
+
+                    <div className="space-y-2 pt-1">
+                      <button 
+                        onClick={() => handlePrint(viewing, false)}
+                        className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-lg text-xs transition"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-slate-500" />
+                        Download Invoice Only
+                      </button>
+                      <button 
+                        onClick={() => handlePrint(viewing, true)}
+                        className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 px-3 rounded-lg text-xs transition shadow-sm"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-white" />
+                        Download Combined PDF
+                      </button>
+                    </div>
+                  </div>
+                  {/* Logistics Info Card */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Logistics Schedule</h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-500 block">ETD Date:</span>
+                        <span className={`font-semibold ${viewing.etdDate ? 'text-red-600 font-bold' : 'text-slate-700'}`}>
+                          {viewing.etdDate ? formatDate(viewing.etdDate) : 'Not Scheduled'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 block">Arrival Date:</span>
+                        <span className={`font-semibold ${viewing.arrivalDate ? 'text-red-600 font-bold' : 'text-slate-700'}`}>
+                          {viewing.arrivalDate ? formatDate(viewing.arrivalDate) : 'Not Scheduled'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Attachments Card */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Invoice Attachments</h3>
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between items-center py-1 border-t">
+                        <span className="text-slate-600 font-medium">LC Copy</span>
+                        {viewing.lcCopyPath ? (
+                          <a 
+                            href={`http://localhost/Automobile/${viewing.lcCopyPath}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-brand-600 hover:underline font-semibold"
+                          >
+                            View Document
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 italic">Not Uploaded</span>
+                        )}
+                      </div>
+                      
+                      <div className="flex justify-between items-center py-1 border-t">
+                        <span className="text-slate-600 font-medium">Inspection Cert.</span>
+                        {viewing.inspectionCertificatePath ? (
+                          <a 
+                            href={`http://localhost/Automobile/${viewing.inspectionCertificatePath}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="text-brand-600 hover:underline font-semibold"
+                          >
+                            View Document
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 italic">Not Uploaded</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Yard Photos Card */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Yard Pictures</h3>
+                    {viewing.yardPictures && viewing.yardPictures.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {viewing.yardPictures.map((pic) => (
+                          <a 
+                            key={pic.id}
+                            href={`http://localhost/Automobile/${pic.file_path}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="border border-slate-200 rounded overflow-hidden aspect-video hover:opacity-95 transition"
+                          >
+                            <img 
+                              src={`http://localhost/Automobile/${pic.file_path}`} 
+                              alt="Yard pic" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic">No yard pictures uploaded</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p>Missing data</p>
+            )}
           </Modal>
         );
       })()}

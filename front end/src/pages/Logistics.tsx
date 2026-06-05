@@ -148,17 +148,17 @@ export default function Logistics() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold text-slate-950 font-display">Logistics & Document Vault</h2>
           <p className="text-sm text-slate-500">Track shipping progress, manage customs documents, and complete registration.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 flex flex-col">
+        <div className="card overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="table w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">

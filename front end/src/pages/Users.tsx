@@ -7,7 +7,7 @@ import { User } from '@/types';
 type FormData = {
   username: string;
   name: string;
-  role: 'admin' | 'executive' | 'sales';
+  role: 'admin' | 'executive' | 'sales' | 'agent';
   password?: string;
 };
 
@@ -17,6 +17,8 @@ const renderRoleBadge = (role: string) => {
       return <span className="px-2 py-0.5 text-xs font-semibold bg-red-50 text-red-700 rounded-full border border-red-200">Admin</span>;
     case 'executive':
       return <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">Executive</span>;
+    case 'agent':
+      return <span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-full border border-amber-200">Clearing Agent</span>;
     default:
       return <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">Sales</span>;
   }
@@ -72,7 +74,7 @@ export default function Users() {
     try {
       if (editingUser) {
         // password optional for edit
-        const payload: any = { name: data.name, role: data.role };
+        const payload: any = { username: data.username, name: data.name, role: data.role };
         if (data.password && data.password.trim() !== '') {
           payload.password = data.password;
         }
@@ -107,8 +109,8 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-xl font-bold text-slate-900">User Priorities Management</h2>
           <p className="text-slate-500 text-sm">Create and modify system authentication profiles</p>
@@ -118,8 +120,8 @@ export default function Users() {
         </button>
       </div>
 
-      <div className="card">
-        <div className="overflow-x-auto">
+      <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="overflow-auto flex-1 min-h-0">
           <table className="table">
             <thead>
               <tr>
@@ -206,7 +208,7 @@ export default function Users() {
                 <input
                   {...register('username', { required: 'Username is required' })}
                   type="text"
-                  disabled={!!editingUser}
+                  disabled={editingUser?.username === 'admin'}
                   placeholder="e.g. db_sales"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-3.5 text-sm outline-none focus:border-brand-500 focus:bg-white transition disabled:bg-slate-100 disabled:text-slate-500"
                 />
@@ -237,6 +239,7 @@ export default function Users() {
                   <option value="admin">Administrator (Root Controls)</option>
                   <option value="executive">Executive (Logistics & Split)</option>
                   <option value="sales">Sales (Quotations & Invoicing)</option>
+                  <option value="agent">Clearing Agent (Invoices View Only)</option>
                 </select>
               </div>
 

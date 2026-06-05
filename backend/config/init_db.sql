@@ -96,10 +96,24 @@ CREATE TABLE IF NOT EXISTS invoices (
     is_tt_complete TINYINT(1) DEFAULT 0,
     due_date DATE NOT NULL,
     status ENUM('Pending', 'Partial', 'Paid') DEFAULT 'Pending',
+    lc_copy_path VARCHAR(255) NULL,
+    inspection_certificate_path VARCHAR(255) NULL,
+    etd_date DATE NULL,
+    arrival_date DATE NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
     FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE SET NULL
 );
+
+-- Invoice Yard Pictures Table
+CREATE TABLE IF NOT EXISTS invoice_yard_pictures (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_id VARCHAR(50) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+);
+
 
 -- Payments Table
 CREATE TABLE IF NOT EXISTS payments (

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, Inbox, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, BookOpen, Inbox, Users, LogOut, UserCheck } from 'lucide-react';
 import { cn } from '@/utils';
 import { useDataStore } from '@/store';
 
@@ -9,9 +9,11 @@ const baseLinks = [
   { to: '/vehicle-models', label: 'Vehicle Models', icon: Car },
   { to: '/quotations', label: 'Quotations', icon: FileText },
   { to: '/invoices', label: 'Invoices', icon: Receipt },
+  { to: '/clearing-agents', label: 'Clearing Agents', icon: UserCheck },
   { to: '/logistics', label: 'Logistics & Vault', icon: Ship },
   { to: '/investors', label: 'Investors & Split', icon: Landmark },
   { to: '/reports', label: 'Accounting & Reports', icon: BarChart3 },
+  { to: '/cashbook', label: 'Corporate Cashbook', icon: BookOpen },
   { to: '/leads', label: 'CRM Leads', icon: Inbox },
 ];
 
@@ -21,8 +23,10 @@ export default function Sidebar({ open, onClose }: Props) {
   const { currentUser, logout } = useDataStore();
   const navigate = useNavigate();
 
-  const links = [...baseLinks];
-  if (currentUser?.role === 'admin') {
+  let links = [...baseLinks];
+  if (currentUser?.role === 'agent') {
+    links = baseLinks.filter((l) => l.to === '/clearing-agents');
+  } else if (currentUser?.role === 'admin') {
     links.push({ to: '/users', label: 'User Priorities', icon: Users });
   }
 

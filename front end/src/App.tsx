@@ -5,12 +5,14 @@ import MakeModels from '@/pages/MakeModels';
 import VehicleModels from '@/pages/VehicleModels';
 import Quotations from '@/pages/Quotations';
 import Invoices from '@/pages/Invoices';
+import ClearingAgents from '@/pages/ClearingAgents';
 import Logistics from '@/pages/Logistics';
 import Investors from '@/pages/Investors';
 import Reports from '@/pages/Reports';
 import Leads from '@/pages/Leads';
 import Login from '@/pages/Login';
 import Users from '@/pages/Users';
+import Cashbook from '@/pages/Cashbook';
 import { useDataStore } from '@/store';
 
 function PrivateRoute() {
@@ -32,9 +34,11 @@ export default function App() {
             <Route path="vehicle-models" element={<VehicleModels />} />
             <Route path="quotations" element={<Quotations />} />
             <Route path="invoices" element={<Invoices />} />
+            <Route path="clearing-agents" element={<ClearingAgents />} />
             <Route path="logistics" element={<Logistics />} />
             <Route path="investors" element={<Investors />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="cashbook" element={<Cashbook />} />
             <Route path="leads" element={<Leads />} />
             <Route path="users" element={<Users />} />
           </Route>

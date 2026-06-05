@@ -57,17 +57,34 @@ switch ($method) {
         }
 
         $data = getJsonInput();
+        $username = trim($data['username'] ?? '');
         $name = trim($data['name'] ?? '');
         $role = trim($data['role'] ?? '');
         $password = trim($data['password'] ?? '');
 
-        if (empty($name) || empty($role)) {
-            sendError("Name and role are required");
+        if (empty($name) || empty($role) || empty($username)) {
+            sendError("Username, name, and role are required");
         }
 
         try {
-            $fields = ["name = ?", "role = ?"];
-            $params = [$name, $role];
+            // Check if user is system admin 'admin' - do not allow changing their username
+            $stmt = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+            $stmt->execute([$id]);
+            $currentUsername = $stmt->fetchColumn();
+
+            if ($currentUsername === 'admin' && $username !== 'admin') {
+                sendError("Cannot change system administrator username", 403);
+            }
+
+            // Check if username is already taken by another user
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? AND id != ?");
+            $stmt->execute([$username, $id]);
+            if ($stmt->fetchColumn() > 0) {
+                sendError("Username is already taken");
+            }
+
+            $fields = ["username = ?", "name = ?", "role = ?"];
+            $params = [$username, $name, $role];
 
             if (!empty($password)) {
                 $fields[] = "password = ?";

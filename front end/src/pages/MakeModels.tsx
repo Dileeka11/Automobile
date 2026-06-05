@@ -33,8 +33,8 @@ export default function MakeModels() {
   const filtered = makeModels.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search makes..." className="bg-transparent outline-none text-sm w-full" />
@@ -42,7 +42,7 @@ export default function MakeModels() {
         <button onClick={openAdd} className="btn-primary"><Plus className="w-4 h-4" /> Add Make Model</button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap flex-1 overflow-auto min-h-0">
         {filtered.length === 0 ? <EmptyState title="No make models" message="Click 'Add Make Model' to create one." /> : (
           <table className="table">
             <thead><tr><th>ID</th><th>Name</th><th className="text-right">Actions</th></tr></thead>

@@ -15,6 +15,7 @@ switch ($method) {
                 c.email,
                 v.make_model_id as makeModelId,
                 v.vehicle_model_id as vehicleModelId,
+                q.service_charge as serviceCharge,
                 q.created_at as createdAt,
                 q.status
             FROM quotations q

@@ -95,8 +95,8 @@ export default function Quotations() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search quotations..." className="bg-transparent outline-none text-sm w-full" />
@@ -104,9 +104,9 @@ export default function Quotations() {
         <button onClick={openAdd} className="btn-primary flex items-center gap-1.5"><Plus className="w-4 h-4" /> New Quotation</button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No quotations" /> : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="table">
               <thead><tr><th>ID</th><th>Customer</th><th>NIC</th><th>Mobile</th><th>Vehicle</th><th>Date</th><th className="text-right">Actions</th></tr></thead>
               <tbody>
@@ -141,11 +141,11 @@ export default function Quotations() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Quotation' : 'New Quotation'} size="xl">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2"><label className="label">Full Name</label><input {...register('name')} className="input" />{errors.name && <p className="text-xs text-red-600 mt-1">{errors.name.message}</p>}</div>
-            <div className="md:col-span-2"><label className="label">Address</label><input {...register('address')} className="input" />{errors.address && <p className="text-xs text-red-600 mt-1">{errors.address.message}</p>}</div>
-            <div><label className="label">NIC</label><input {...register('nic')} className="input" />{errors.nic && <p className="text-xs text-red-600 mt-1">{errors.nic.message}</p>}</div>
-            <div><label className="label">Mobile No</label><input {...register('mobileNo')} className="input" />{errors.mobileNo && <p className="text-xs text-red-600 mt-1">{errors.mobileNo.message}</p>}</div>
-            <div className="md:col-span-2"><label className="label">Email</label><input type="email" {...register('email')} className="input" />{errors.email && <p className="text-xs text-red-600 mt-1">{errors.email.message}</p>}</div>
+            <div className="md:col-span-2"><label className="label">Full Name</label><input {...register('name')} placeholder="Enter customer full name (e.g. John Doe)" className="input" />{errors.name && <p className="text-xs text-red-600 mt-1">{errors.name.message}</p>}</div>
+            <div className="md:col-span-2"><label className="label">Address</label><input {...register('address')} placeholder="Enter customer residential or business address" className="input" />{errors.address && <p className="text-xs text-red-600 mt-1">{errors.address.message}</p>}</div>
+            <div><label className="label">NIC</label><input {...register('nic')} placeholder="Enter NIC number (e.g. 199912345678 or 991234567V)" className="input" />{errors.nic && <p className="text-xs text-red-600 mt-1">{errors.nic.message}</p>}</div>
+            <div><label className="label">Mobile No</label><input {...register('mobileNo')} placeholder="Enter mobile phone number (e.g. 0771234567)" className="input" />{errors.mobileNo && <p className="text-xs text-red-600 mt-1">{errors.mobileNo.message}</p>}</div>
+            <div className="md:col-span-2"><label className="label">Email</label><input type="email" {...register('email')} placeholder="Enter email address (e.g. john.doe@example.com)" className="input" />{errors.email && <p className="text-xs text-red-600 mt-1">{errors.email.message}</p>}</div>
             <div>
               <label className="label">Make Model</label>
               <select {...register('makeModelId')} className="input" onChange={(e) => { register('makeModelId').onChange(e); const first = vehicleModels.find((v) => v.makeModelId === e.target.value); setValue('vehicleModelId', first?.id || ''); }}>

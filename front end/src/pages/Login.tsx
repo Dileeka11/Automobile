@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
 import { Gauge, KeyRound, User, Loader2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export default function Login() {
   const login = useDataStore((s) => s.login);
@@ -20,7 +21,18 @@ export default function Login() {
       toast.success('Successfully logged in!');
       navigate('/');
     } catch (e: any) {
-      toast.error(e.message || 'Invalid username or password');
+      Swal.fire({
+        icon: 'error',
+        title: 'Access Denied',
+        text: e.message || 'Invalid username or password',
+        confirmButtonText: 'Try Again',
+        confirmButtonColor: '#1a3a6e', // Brand Navy
+        background: '#ffffff',
+        customClass: {
+          popup: 'rounded-2xl shadow-xl border border-slate-100',
+          confirmButton: 'px-5 py-2.5 rounded-xl font-semibold text-sm transition',
+        }
+      });
     } finally {
       setLoading(false);
     }
@@ -41,7 +53,7 @@ export default function Login() {
           <p className="text-slate-400 text-sm mt-1">Vehicle Import & Logistics Management</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" autoComplete="off">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Username</label>
             <div className="relative">
@@ -49,6 +61,7 @@ export default function Login() {
               <input
                 {...register('username', { required: 'Username is required' })}
                 type="text"
+                autoComplete="off"
                 placeholder="Enter username"
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none focus:border-brand-500 transition"
               />
@@ -65,6 +78,7 @@ export default function Login() {
               <input
                 {...register('password', { required: 'Password is required' })}
                 type="password"
+                autoComplete="new-password"
                 placeholder="Enter password"
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-sm text-white placeholder-slate-500 outline-none focus:border-brand-500 transition"
               />

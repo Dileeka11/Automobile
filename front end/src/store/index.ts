@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Invoice, MakeModel, Quotation, ToastMessage, VehicleModel, Lead, Investor, Investment, LogisticsItem, Expense, User } from '@/types';
+import { Invoice, MakeModel, Quotation, ToastMessage, VehicleModel, Lead, Investor, Investment, LogisticsItem, Expense, User, CashbookExpense } from '@/types';
 import { vehicleTotal } from '@/utils';
 
 // Helper for JSON requests
@@ -22,6 +22,7 @@ interface DataState {
   investments: Investment[];
   logistics: LogisticsItem[];
   expenses: Expense[];
+  cashbookExpenses: CashbookExpense[];
   reports: any;
   dashboardData: any;
   loading: boolean;
@@ -47,7 +48,7 @@ interface DataState {
 
   // Invoice CRUD
   addInvoice: (i: Omit<Invoice, 'id' | 'createdAt'>) => Promise<Invoice>;
-  updateInvoice: (id: string, i: Partial<Invoice>) => Promise<void>;
+  updateInvoice: (id: string, i: Partial<Invoice> | FormData) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
 
   // Agreements
@@ -88,6 +89,11 @@ interface DataState {
   addExpense: (exp: { vehicleId: number; expenseType: string; amount: number; description: string; dateIncurred: string }) => Promise<void>;
   deleteExpense: (id: number) => Promise<void>;
 
+  // Cashbook general expenses
+  fetchCashbookExpenses: () => Promise<void>;
+  addCashbookExpense: (exp: { expenseType: string; amount: number; description: string; dateIncurred: string }) => Promise<void>;
+  deleteCashbookExpense: (id: number) => Promise<void>;
+
   currentUser: User | null;
   users: User[];
   login: (username: string, password: string) => Promise<void>;
@@ -108,6 +114,7 @@ export const useDataStore = create<DataState>((set) => ({
   investments: [],
   logistics: [],
   expenses: [],
+  cashbookExpenses: [],
   reports: null,
   dashboardData: null,
   loading: false,
@@ -122,7 +129,8 @@ export const useDataStore = create<DataState>((set) => ({
       const vehicleModels = await apiFetch('/api/vehicle-models.php');
       const quotations = await apiFetch('/api/quotations.php');
       const invoices = await apiFetch('/api/invoices.php');
-      set({ makeModels, vehicleModels, quotations, invoices, loading: false });
+      const cashbookExpenses = await apiFetch('/api/cashbook.php').catch(() => []);
+      set({ makeModels, vehicleModels, quotations, invoices, cashbookExpenses, loading: false });
     } catch (e) {
       console.error(e);
       set({ loading: false });
@@ -228,11 +236,15 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateInvoice: async (id, i) => {
-    const updated = await apiFetch(`/api/invoices.php?id=${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(i),
-    });
+    const isFormData = i instanceof FormData;
+    const options: RequestInit = isFormData
+      ? { method: 'POST', body: i }
+      : {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(i),
+        };
+    const updated = await apiFetch(`/api/invoices.php?id=${id}`, options);
     set((s) => ({ invoices: s.invoices.map((x) => x.id === id ? updated : x) }));
   },
 
@@ -392,6 +404,25 @@ export const useDataStore = create<DataState>((set) => ({
   deleteExpense: async (id) => {
     await apiFetch(`/api/expenses.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) }));
+  },
+
+  fetchCashbookExpenses: async () => {
+    const cashbookExpenses = await apiFetch('/api/cashbook.php');
+    set({ cashbookExpenses });
+  },
+
+  addCashbookExpense: async (exp) => {
+    const newExp = await apiFetch('/api/cashbook.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(exp),
+    });
+    set((s) => ({ cashbookExpenses: [newExp, ...s.cashbookExpenses] }));
+  },
+
+  deleteCashbookExpense: async (id) => {
+    await apiFetch(`/api/cashbook.php?id=${id}`, { method: 'DELETE' });
+    set((s) => ({ cashbookExpenses: s.cashbookExpenses.filter((x) => x.id !== id) }));
   },
 
   login: async (username, password) => {

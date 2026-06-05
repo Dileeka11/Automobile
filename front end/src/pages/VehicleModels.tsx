@@ -58,8 +58,8 @@ export default function VehicleModels() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between gap-3">
+    <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200 w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400" />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search vehicles..." className="bg-transparent outline-none text-sm w-full" />
@@ -67,9 +67,9 @@ export default function VehicleModels() {
         <button onClick={openAdd} className="btn-primary"><Plus className="w-4 h-4" /> Add Vehicle Model</button>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No vehicle models" /> : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto flex-1 min-h-0">
             <table className="table">
               <thead><tr><th>Make</th><th>Model</th><th>Year</th><th>Engine</th><th>Color</th><th>Grade</th><th>CIF</th><th>Total</th><th className="text-right">Actions</th></tr></thead>
               <tbody>

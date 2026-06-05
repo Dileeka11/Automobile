@@ -18,7 +18,11 @@ try {
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
-    if ($user && password_verify($password, $user['password'])) {
+    if (!$user) {
+        sendError("Incorrect username", 401);
+    } else if (!password_verify($password, $user['password'])) {
+        sendError("Incorrect password", 401);
+    } else {
         // Successful login
         sendJson([
             "id" => (int)$user['id'],
@@ -26,8 +30,6 @@ try {
             "name" => $user['name'],
             "role" => $user['role']
         ]);
-    } else {
-        sendError("Invalid username or password", 401);
     }
 } catch (Exception $e) {
     sendError("Authentication error: " . $e->getMessage(), 500);

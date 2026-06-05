@@ -30,6 +30,7 @@ export interface Quotation {
   email: string;
   makeModelId: string;
   vehicleModelId: string;
+  serviceCharge?: number;
   createdAt: string;
   status?: string;
 }
@@ -45,6 +46,11 @@ export interface Invoice {
   status: InvoiceStatus;
   isLcComplete?: boolean;
   isTtComplete?: boolean;
+  lcCopyPath?: string | null;
+  inspectionCertificatePath?: string | null;
+  etdDate?: string | null;
+  arrivalDate?: string | null;
+  yardPictures?: { id: number; file_path: string }[];
   createdAt: string;
 }
 
@@ -119,6 +125,15 @@ export interface User {
   id: number;
   username: string;
   name: string;
-  role: 'admin' | 'executive' | 'sales';
+  role: 'admin' | 'executive' | 'sales' | 'agent';
   createdAt: string;
+}
+
+export interface CashbookExpense {
+  id: number;
+  expenseType: string;
+  amount: number;
+  description: string;
+  dateIncurred: string;
+  createdAt?: string;
 }

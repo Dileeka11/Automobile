@@ -8,6 +8,11 @@ switch ($method) {
         $stmt = $pdo->query("SELECT * FROM invoices ORDER BY created_at DESC");
         $results = [];
         foreach ($stmt->fetchAll() as $row) {
+            // Fetch yard pictures for this invoice
+            $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
+            $picStmt->execute([$row['id']]);
+            $yardPictures = $picStmt->fetchAll();
+
             $results[] = [
                 'id' => $row['id'],
                 'quotationId' => $row['quotation_id'],
@@ -17,6 +22,11 @@ switch ($method) {
                 'isLcComplete' => (bool)$row['is_lc_complete'],
                 'isTtComplete' => (bool)$row['is_tt_complete'],
                 'status' => strtolower($row['status']),
+                'lcCopyPath' => $row['lc_copy_path'],
+                'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                'etdDate' => $row['etd_date'],
+                'arrivalDate' => $row['arrival_date'],
+                'yardPictures' => $yardPictures,
                 'createdAt' => $row['created_at']
             ];
         }
@@ -24,13 +34,193 @@ switch ($method) {
         break;
 
     case 'POST':
+        $id = $_GET['id'] ?? null;
+        if ($id) {
+            // --- This is a POST-based UPDATE to support multipart/form-data file uploads ---
+            try {
+                $lcCopyPath = null;
+                if (!empty($_FILES['lcCopy']) && $_FILES['lcCopy']['error'] === UPLOAD_ERR_OK) {
+                    $dir = __DIR__ . '/../uploads/documents/';
+                    if (!file_exists($dir)) mkdir($dir, 0777, true);
+                    $ext = pathinfo($_FILES['lcCopy']['name'], PATHINFO_EXTENSION);
+                    $fileName = 'lc_' . $id . '_' . time() . '.' . $ext;
+                    if (move_uploaded_file($_FILES['lcCopy']['tmp_name'], $dir . $fileName)) {
+                        $lcCopyPath = 'backend/uploads/documents/' . $fileName;
+                    }
+                }
+
+                $insCertPath = null;
+                if (!empty($_FILES['inspectionCertificate']) && $_FILES['inspectionCertificate']['error'] === UPLOAD_ERR_OK) {
+                    $dir = __DIR__ . '/../uploads/documents/';
+                    if (!file_exists($dir)) mkdir($dir, 0777, true);
+                    $ext = pathinfo($_FILES['inspectionCertificate']['name'], PATHINFO_EXTENSION);
+                    $fileName = 'ic_' . $id . '_' . time() . '.' . $ext;
+                    if (move_uploaded_file($_FILES['inspectionCertificate']['tmp_name'], $dir . $fileName)) {
+                        $insCertPath = 'backend/uploads/documents/' . $fileName;
+                    }
+                }
+
+                if (!empty($_FILES['yardPictures'])) {
+                    $files = $_FILES['yardPictures'];
+                    $dir = __DIR__ . '/../uploads/documents/';
+                    if (!file_exists($dir)) mkdir($dir, 0777, true);
+                    
+                    if (is_array($files['name'])) {
+                        for ($i = 0; $i < count($files['name']); $i++) {
+                            if ($files['error'][$i] === UPLOAD_ERR_OK) {
+                                $ext = pathinfo($files['name'][$i], PATHINFO_EXTENSION);
+                                $fileName = 'yard_' . $id . '_' . $i . '_' . time() . '.' . $ext;
+                                if (move_uploaded_file($files['tmp_name'][$i], $dir . $fileName)) {
+                                    $dbPath = 'backend/uploads/documents/' . $fileName;
+                                    $picStmt = $pdo->prepare("INSERT INTO invoice_yard_pictures (invoice_id, file_path) VALUES (?, ?)");
+                                    $picStmt->execute([$id, $dbPath]);
+                                }
+                            }
+                        }
+                    } else {
+                        if ($files['error'] === UPLOAD_ERR_OK) {
+                            $ext = pathinfo($files['name'], PATHINFO_EXTENSION);
+                            $fileName = 'yard_' . $id . '_' . time() . '.' . $ext;
+                            if (move_uploaded_file($files['tmp_name'], $dir . $fileName)) {
+                                $dbPath = 'backend/uploads/documents/' . $fileName;
+                                $picStmt = $pdo->prepare("INSERT INTO invoice_yard_pictures (invoice_id, file_path) VALUES (?, ?)");
+                                $picStmt->execute([$id, $dbPath]);
+                            }
+                        }
+                    }
+                }
+
+                // Delete yard pictures if requested
+                if (!empty($_POST['deleteYardPictureIds'])) {
+                    $delIds = explode(',', $_POST['deleteYardPictureIds']);
+                    foreach ($delIds as $delId) {
+                        $delId = (int)trim($delId);
+                        if ($delId > 0) {
+                            $selStmt = $pdo->prepare("SELECT file_path FROM invoice_yard_pictures WHERE id = ? AND invoice_id = ?");
+                            $selStmt->execute([$delId, $id]);
+                            $delPath = $selStmt->fetchColumn();
+                            if ($delPath) {
+                                $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $delPath);
+                                if (file_exists($fullPath)) unlink($fullPath);
+                                $delStmt = $pdo->prepare("DELETE FROM invoice_yard_pictures WHERE id = ?");
+                                $delStmt->execute([$delId]);
+                            }
+                        }
+                    }
+                }
+
+                // Delete LC Copy if requested
+                if (!empty($_POST['deleteLcCopy'])) {
+                    $selStmt = $pdo->prepare("SELECT lc_copy_path FROM invoices WHERE id = ?");
+                    $selStmt->execute([$id]);
+                    $delPath = $selStmt->fetchColumn();
+                    if ($delPath) {
+                        $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $delPath);
+                        if (file_exists($fullPath)) unlink($fullPath);
+                    }
+                    $upStmt = $pdo->prepare("UPDATE invoices SET lc_copy_path = NULL WHERE id = ?");
+                    $upStmt->execute([$id]);
+                }
+
+                // Delete Inspection Certificate if requested
+                if (!empty($_POST['deleteInspectionCertificate'])) {
+                    $selStmt = $pdo->prepare("SELECT inspection_certificate_path FROM invoices WHERE id = ?");
+                    $selStmt->execute([$id]);
+                    $delPath = $selStmt->fetchColumn();
+                    if ($delPath) {
+                        $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $delPath);
+                        if (file_exists($fullPath)) unlink($fullPath);
+                    }
+                    $upStmt = $pdo->prepare("UPDATE invoices SET inspection_certificate_path = NULL WHERE id = ?");
+                    $upStmt->execute([$id]);
+                }
+
+                $fields = [];
+                $params = [];
+
+                if (isset($_POST['status'])) {
+                    $fields[] = "status = ?";
+                    $params[] = strtoupper($_POST['status']);
+                }
+                if (isset($_POST['advanceAmount'])) {
+                    $fields[] = "advance_amount = ?";
+                    $params[] = (float)$_POST['advanceAmount'];
+                }
+                if (isset($_POST['balance'])) {
+                    $fields[] = "balance = ?";
+                    $params[] = (float)$_POST['balance'];
+                }
+                if (isset($_POST['isLcComplete'])) {
+                    $fields[] = "is_lc_complete = ?";
+                    $params[] = filter_var($_POST['isLcComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+                }
+                if (isset($_POST['isTtComplete'])) {
+                    $fields[] = "is_tt_complete = ?";
+                    $params[] = filter_var($_POST['isTtComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+                }
+                if (isset($_POST['etdDate'])) {
+                    $fields[] = "etd_date = ?";
+                    $params[] = empty($_POST['etdDate']) ? null : $_POST['etdDate'];
+                }
+                if (isset($_POST['arrivalDate'])) {
+                    $fields[] = "arrival_date = ?";
+                    $params[] = empty($_POST['arrivalDate']) ? null : $_POST['arrivalDate'];
+                }
+                if ($lcCopyPath) {
+                    $fields[] = "lc_copy_path = ?";
+                    $params[] = $lcCopyPath;
+                }
+                if ($insCertPath) {
+                    $fields[] = "inspection_certificate_path = ?";
+                    $params[] = $insCertPath;
+                }
+
+                if (count($fields) > 0) {
+                    $params[] = $id;
+                    $sql = "UPDATE invoices SET " . implode(", ", $fields) . " WHERE id = ?";
+                    $stmt = $pdo->prepare($sql);
+                    $stmt->execute($params);
+                }
+
+                // Fetch updated invoice
+                $stmt = $pdo->prepare("SELECT * FROM invoices WHERE id = ?");
+                $stmt->execute([$id]);
+                $row = $stmt->fetch();
+
+                $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
+                $picStmt->execute([$id]);
+                $yardPictures = $picStmt->fetchAll();
+
+                sendJson([
+                    'id' => $row['id'],
+                    'quotationId' => $row['quotation_id'],
+                    'ttAmount' => (float)$row['tt_amount'],
+                    'advanceAmount' => (float)$row['advance_amount'],
+                    'balance' => (float)$row['balance'],
+                    'isLcComplete' => (bool)$row['is_lc_complete'],
+                    'isTtComplete' => (bool)$row['is_tt_complete'],
+                    'status' => strtolower($row['status']),
+                    'lcCopyPath' => $row['lc_copy_path'],
+                    'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                    'etdDate' => $row['etd_date'],
+                    'arrivalDate' => $row['arrival_date'],
+                    'yardPictures' => $yardPictures,
+                    'createdAt' => $row['created_at']
+                ]);
+
+            } catch (Exception $e) {
+                sendError($e->getMessage());
+            }
+            break;
+        }
+
+        // --- Standard Normal Create Invoice ---
         $data = getJsonInput();
         if (empty($data['quotationId'])) {
             sendError("Quotation ID is required");
         }
 
         try {
-            // Find vehicle_id for the quotation
             $stmt = $pdo->prepare("SELECT vehicle_id FROM quotations WHERE id = ?");
             $stmt->execute([$data['quotationId']]);
             $vehicleId = $stmt->fetchColumn();
@@ -43,9 +233,8 @@ switch ($method) {
             $dueDate = date('Y-m-d', strtotime('+3 days'));
             $status = strtoupper($data['status'] ?? 'PENDING');
 
-            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, is_tt_complete, due_date, status) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
-            // total cost is advance + balance
             $totalAmount = ($data['advanceAmount'] ?? 0) + ($data['balance'] ?? 0);
 
             $stmt->execute([
@@ -59,7 +248,9 @@ switch ($method) {
                 isset($data['isLcComplete']) ? ($data['isLcComplete'] ? 1 : 0) : 0,
                 isset($data['isTtComplete']) ? ($data['isTtComplete'] ? 1 : 0) : 0,
                 $dueDate,
-                $status
+                $status,
+                empty($data['etdDate']) ? null : $data['etdDate'],
+                empty($data['arrivalDate']) ? null : $data['arrivalDate']
             ]);
 
             sendJson([
@@ -71,6 +262,11 @@ switch ($method) {
                 'isLcComplete' => isset($data['isLcComplete']) ? (bool)$data['isLcComplete'] : false,
                 'isTtComplete' => isset($data['isTtComplete']) ? (bool)$data['isTtComplete'] : false,
                 'status' => strtolower($status),
+                'lcCopyPath' => null,
+                'inspectionCertificatePath' => null,
+                'etdDate' => $data['etdDate'] ?? null,
+                'arrivalDate' => $data['arrivalDate'] ?? null,
+                'yardPictures' => [],
                 'createdAt' => date('c')
             ]);
 
@@ -87,7 +283,6 @@ switch ($method) {
         $data = getJsonInput();
 
         try {
-            // Can update status or other fields
             $fields = [];
             $params = [];
 
@@ -111,20 +306,30 @@ switch ($method) {
                 $fields[] = "is_tt_complete = ?";
                 $params[] = $data['isTtComplete'] ? 1 : 0;
             }
-
-            if (count($fields) === 0) {
-                sendJson(["message" => "No fields to update"]);
+            if (isset($data['etdDate'])) {
+                $fields[] = "etd_date = ?";
+                $params[] = empty($data['etdDate']) ? null : $data['etdDate'];
+            }
+            if (isset($data['arrivalDate'])) {
+                $fields[] = "arrival_date = ?";
+                $params[] = empty($data['arrivalDate']) ? null : $data['arrivalDate'];
             }
 
-            $params[] = $id;
-            $sql = "UPDATE invoices SET " . implode(", ", $fields) . " WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
+            if (count($fields) > 0) {
+                $params[] = $id;
+                $sql = "UPDATE invoices SET " . implode(", ", $fields) . " WHERE id = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+            }
 
             // Fetch updated invoice
             $stmt = $pdo->prepare("SELECT * FROM invoices WHERE id = ?");
             $stmt->execute([$id]);
             $row = $stmt->fetch();
+
+            $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
+            $picStmt->execute([$id]);
+            $yardPictures = $picStmt->fetchAll();
 
             sendJson([
                 'id' => $row['id'],
@@ -135,6 +340,11 @@ switch ($method) {
                 'isLcComplete' => (bool)$row['is_lc_complete'],
                 'isTtComplete' => (bool)$row['is_tt_complete'],
                 'status' => strtolower($row['status']),
+                'lcCopyPath' => $row['lc_copy_path'],
+                'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                'etdDate' => $row['etd_date'],
+                'arrivalDate' => $row['arrival_date'],
+                'yardPictures' => $yardPictures,
                 'createdAt' => $row['created_at']
             ]);
 
@@ -148,6 +358,29 @@ switch ($method) {
         if (!$id) {
             sendError("Invoice ID is required");
         }
+        
+        // Fetch files to delete them from folder
+        $stmt = $pdo->prepare("SELECT lc_copy_path, inspection_certificate_path FROM invoices WHERE id = ?");
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        if ($row) {
+            if ($row['lc_copy_path']) {
+                $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $row['lc_copy_path']);
+                if (file_exists($fullPath)) unlink($fullPath);
+            }
+            if ($row['inspection_certificate_path']) {
+                $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $row['inspection_certificate_path']);
+                if (file_exists($fullPath)) unlink($fullPath);
+            }
+        }
+        
+        $picsStmt = $pdo->prepare("SELECT file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
+        $picsStmt->execute([$id]);
+        foreach ($picsStmt->fetchAll() as $pic) {
+            $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $pic['file_path']);
+            if (file_exists($fullPath)) unlink($fullPath);
+        }
+
         $stmt = $pdo->prepare("DELETE FROM invoices WHERE id = ?");
         $stmt->execute([$id]);
         sendJson(["status" => "success"]);
