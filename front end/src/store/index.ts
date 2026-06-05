@@ -125,11 +125,11 @@ export const useDataStore = create<DataState>((set) => ({
   fetchData: async () => {
     set({ loading: true });
     try {
-      const makeModels = await apiFetch('/api/make-models.php');
-      const vehicleModels = await apiFetch('/api/vehicle-models.php');
-      const quotations = await apiFetch('/api/quotations.php');
-      const invoices = await apiFetch('/api/invoices.php');
-      const cashbookExpenses = await apiFetch('/api/cashbook.php').catch(() => []);
+      const makeModels = await apiFetch('/backend/api/make-models.php');
+      const vehicleModels = await apiFetch('/backend/api/vehicle-models.php');
+      const quotations = await apiFetch('/backend/api/quotations.php');
+      const invoices = await apiFetch('/backend/api/invoices.php');
+      const cashbookExpenses = await apiFetch('/backend/api/cashbook.php').catch(() => []);
       set({ makeModels, vehicleModels, quotations, invoices, cashbookExpenses, loading: false });
     } catch (e) {
       console.error(e);
@@ -139,7 +139,7 @@ export const useDataStore = create<DataState>((set) => ({
 
   fetchDashboard: async () => {
     try {
-      const data = await apiFetch('/api/dashboard.php');
+      const data = await apiFetch('/backend/api/dashboard.php');
       set({ dashboardData: data });
     } catch (e) {
       console.error(e);
@@ -148,7 +148,7 @@ export const useDataStore = create<DataState>((set) => ({
 
   fetchReports: async () => {
     try {
-      const data = await apiFetch('/api/reports.php');
+      const data = await apiFetch('/backend/api/reports.php');
       set({ reports: data });
     } catch (e) {
       console.error(e);
@@ -156,7 +156,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   addMakeModel: async (m) => {
-    const newM = await apiFetch('/api/make-models.php', {
+    const newM = await apiFetch('/backend/api/make-models.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(m),
@@ -165,7 +165,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateMakeModel: async (id, m) => {
-    const updated = await apiFetch(`/api/make-models.php?id=${id}`, {
+    const updated = await apiFetch(`/backend/api/make-models.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(m),
@@ -174,12 +174,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteMakeModel: async (id) => {
-    await apiFetch(`/api/make-models.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/make-models.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ makeModels: s.makeModels.filter((x) => x.id !== id) }));
   },
 
   addVehicleModel: async (v) => {
-    const newV = await apiFetch('/api/vehicle-models.php', {
+    const newV = await apiFetch('/backend/api/vehicle-models.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(v),
@@ -188,7 +188,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateVehicleModel: async (id, v) => {
-    const updated = await apiFetch(`/api/vehicle-models.php?id=${id}`, {
+    const updated = await apiFetch(`/backend/api/vehicle-models.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(v),
@@ -197,12 +197,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteVehicleModel: async (id) => {
-    await apiFetch(`/api/vehicle-models.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/vehicle-models.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ vehicleModels: s.vehicleModels.filter((x) => x.id !== id) }));
   },
 
   addQuotation: async (q) => {
-    const newQ = await apiFetch('/api/quotations.php', {
+    const newQ = await apiFetch('/backend/api/quotations.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(q),
@@ -212,7 +212,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateQuotation: async (id, q) => {
-    const updated = await apiFetch(`/api/quotations.php?id=${id}`, {
+    const updated = await apiFetch(`/backend/api/quotations.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(q),
@@ -221,12 +221,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteQuotation: async (id) => {
-    await apiFetch(`/api/quotations.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/quotations.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ quotations: s.quotations.filter((x) => x.id !== id) }));
   },
 
   addInvoice: async (i) => {
-    const newI = await apiFetch('/api/invoices.php', {
+    const newI = await apiFetch('/backend/api/invoices.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(i),
@@ -244,17 +244,17 @@ export const useDataStore = create<DataState>((set) => ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(i),
         };
-    const updated = await apiFetch(`/api/invoices.php?id=${id}`, options);
+    const updated = await apiFetch(`/backend/api/invoices.php?id=${id}`, options);
     set((s) => ({ invoices: s.invoices.map((x) => x.id === id ? updated : x) }));
   },
 
   deleteInvoice: async (id) => {
-    await apiFetch(`/api/invoices.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/invoices.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ invoices: s.invoices.filter((x) => x.id !== id) }));
   },
 
   signAgreement: async (quotationId, signatureBase64) => {
-    return apiFetch('/api/agreements.php', {
+    return apiFetch('/backend/api/agreements.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ quotationId, signatureBase64 }),
@@ -262,12 +262,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   fetchLeads: async () => {
-    const leads = await apiFetch('/api/leads.php');
+    const leads = await apiFetch('/backend/api/leads.php');
     set({ leads });
   },
 
   updateLeadStatus: async (id, status) => {
-    await apiFetch(`/api/leads.php?id=${id}`, {
+    await apiFetch(`/backend/api/leads.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -276,32 +276,32 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteLead: async (id) => {
-    await apiFetch(`/api/leads.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/leads.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ leads: s.leads.filter((x) => x.id !== id) }));
   },
 
   fetchLogistics: async () => {
-    const logistics = await apiFetch('/api/logistics.php');
+    const logistics = await apiFetch('/backend/api/logistics.php');
     set({ logistics });
   },
 
   updateLogistics: async (item) => {
-    await apiFetch('/api/logistics.php', {
+    await apiFetch('/backend/api/logistics.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(item),
     });
     // refresh logistics state
-    const logistics = await apiFetch('/api/logistics.php');
+    const logistics = await apiFetch('/backend/api/logistics.php');
     set({ logistics });
   },
 
   fetchRegistration: async (vehicleId) => {
-    return apiFetch(`/api/registration.php?vehicle_id=${vehicleId}`);
+    return apiFetch(`/backend/api/registration.php?vehicle_id=${vehicleId}`);
   },
 
   updateRegistration: async (regData) => {
-    await apiFetch('/api/registration.php', {
+    await apiFetch('/backend/api/registration.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(regData),
@@ -309,7 +309,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   fetchDocuments: async (vehicleId) => {
-    return apiFetch(`/api/documents.php?vehicle_id=${vehicleId}`);
+    return apiFetch(`/backend/api/documents.php?vehicle_id=${vehicleId}`);
   },
 
   uploadDocument: async (vehicleId, documentType, file) => {
@@ -317,23 +317,23 @@ export const useDataStore = create<DataState>((set) => ({
     formData.append('vehicle_id', String(vehicleId));
     formData.append('document_type', documentType);
     formData.append('file', file);
-    return apiFetch('/api/documents.php', {
+    return apiFetch('/backend/api/documents.php', {
       method: 'POST',
       body: formData, // Fetch automatically handles content-type for FormData
     });
   },
 
   deleteDocument: async (id) => {
-    await apiFetch(`/api/documents.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/documents.php?id=${id}`, { method: 'DELETE' });
   },
 
   fetchInvestors: async () => {
-    const investors = await apiFetch('/api/investors.php');
+    const investors = await apiFetch('/backend/api/investors.php');
     set({ investors });
   },
 
   addInvestor: async (i) => {
-    const newInv = await apiFetch('/api/investors.php', {
+    const newInv = await apiFetch('/backend/api/investors.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(i),
@@ -342,7 +342,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateInvestor: async (id, i) => {
-    const updated = await apiFetch(`/api/investors.php?id=${id}`, {
+    const updated = await apiFetch(`/backend/api/investors.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(i),
@@ -351,68 +351,68 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteInvestor: async (id) => {
-    await apiFetch(`/api/investors.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/investors.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ investors: s.investors.filter((x) => x.id !== id) }));
   },
 
   fetchInvestments: async () => {
-    const investments = await apiFetch('/api/investors.php?action=get_investments');
+    const investments = await apiFetch('/backend/api/investors.php?action=get_investments');
     set({ investments });
   },
 
   addInvestment: async (inv) => {
-    await apiFetch('/api/investors.php?action=add_investment', {
+    await apiFetch('/backend/api/investors.php?action=add_investment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(inv),
     });
-    const investments = await apiFetch('/api/investors.php?action=get_investments');
+    const investments = await apiFetch('/backend/api/investors.php?action=get_investments');
     set({ investments });
   },
 
   settleInvestment: async (investmentId) => {
-    await apiFetch('/api/investors.php?action=settle_investment', {
+    await apiFetch('/backend/api/investors.php?action=settle_investment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ investmentId }),
     });
-    const investments = await apiFetch('/api/investors.php?action=get_investments');
+    const investments = await apiFetch('/backend/api/investors.php?action=get_investments');
     set({ investments });
   },
 
   fetchAvailableVehicles: async () => {
-    return apiFetch('/api/investors.php?action=vehicles_available');
+    return apiFetch('/backend/api/investors.php?action=vehicles_available');
   },
 
   fetchExpenses: async (vehicleId) => {
-    const url = vehicleId ? `/api/expenses.php?vehicle_id=${vehicleId}` : '/api/expenses.php';
+    const url = vehicleId ? `/backend/api/expenses.php?vehicle_id=${vehicleId}` : '/backend/api/expenses.php';
     const expenses = await apiFetch(url);
     if (!vehicleId) set({ expenses });
     return expenses;
   },
 
   addExpense: async (exp) => {
-    await apiFetch('/api/expenses.php', {
+    await apiFetch('/backend/api/expenses.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(exp),
     });
-    const expenses = await apiFetch('/api/expenses.php');
+    const expenses = await apiFetch('/backend/api/expenses.php');
     set({ expenses });
   },
 
   deleteExpense: async (id) => {
-    await apiFetch(`/api/expenses.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/expenses.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ expenses: s.expenses.filter((x) => x.id !== id) }));
   },
 
   fetchCashbookExpenses: async () => {
-    const cashbookExpenses = await apiFetch('/api/cashbook.php');
+    const cashbookExpenses = await apiFetch('/backend/api/cashbook.php');
     set({ cashbookExpenses });
   },
 
   addCashbookExpense: async (exp) => {
-    const newExp = await apiFetch('/api/cashbook.php', {
+    const newExp = await apiFetch('/backend/api/cashbook.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(exp),
@@ -421,12 +421,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteCashbookExpense: async (id) => {
-    await apiFetch(`/api/cashbook.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/cashbook.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ cashbookExpenses: s.cashbookExpenses.filter((x) => x.id !== id) }));
   },
 
   login: async (username, password) => {
-    const user = await apiFetch('/api/auth.php', {
+    const user = await apiFetch('/backend/api/auth.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -441,12 +441,12 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   fetchUsers: async () => {
-    const users = await apiFetch('/api/users.php');
+    const users = await apiFetch('/backend/api/users.php');
     set({ users });
   },
 
   addUser: async (u) => {
-    const newUser = await apiFetch('/api/users.php', {
+    const newUser = await apiFetch('/backend/api/users.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(u),
@@ -455,7 +455,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   updateUser: async (id, u) => {
-    const updated = await apiFetch(`/api/users.php?id=${id}`, {
+    const updated = await apiFetch(`/backend/api/users.php?id=${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(u),
@@ -464,7 +464,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   deleteUser: async (id) => {
-    await apiFetch(`/api/users.php?id=${id}`, { method: 'DELETE' });
+    await apiFetch(`/backend/api/users.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ users: s.users.filter((x) => x.id !== id) }));
   },
 }));

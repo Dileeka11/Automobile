@@ -730,7 +730,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
         <Page size="A4" style={s.attachmentPage}>
           <Text style={s.attachmentTitle}>ATTACHMENT: LC COPY</Text>
           <View style={s.attachmentContainer}>
-            <Image src={`http://localhost/Automobile/backend/api/image.php?path=${encodeURIComponent(invoice.lcCopyPath)}`} style={s.attachmentImage} />
+            <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(invoice.lcCopyPath)}`} style={s.attachmentImage} />
           </View>
         </Page>
       )}
@@ -740,7 +740,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
         <Page size="A4" style={s.attachmentPage}>
           <Text style={s.attachmentTitle}>ATTACHMENT: INSPECTION CERTIFICATE</Text>
           <View style={s.attachmentContainer}>
-            <Image src={`http://localhost/Automobile/backend/api/image.php?path=${encodeURIComponent(invoice.inspectionCertificatePath)}`} style={s.attachmentImage} />
+            <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(invoice.inspectionCertificatePath)}`} style={s.attachmentImage} />
           </View>
         </Page>
       )}
@@ -752,7 +752,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
           <View style={s.yardGridContainer}>
             {invoice.yardPictures.map((pic, idx) => (
               <View key={pic.id} style={s.yardPhotoBox}>
-                <Image src={`http://localhost/Automobile/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`} style={s.yardPhotoImg} />
+                <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`} style={s.yardPhotoImg} />
                 <Text style={s.yardPhotoLabel}>Yard Photo {idx + 1}</Text>
               </View>
             ))}
@@ -776,10 +776,10 @@ export async function getMergedPDFBlob(props: Props): Promise<Blob> {
   // 2. Collect PDF attachment URLs to merge
   const pdfUrlsToMerge: string[] = [];
   if (props.invoice.lcCopyPath && !isImage(props.invoice.lcCopyPath)) {
-    pdfUrlsToMerge.push(`http://localhost/Automobile/backend/api/image.php?path=${encodeURIComponent(props.invoice.lcCopyPath)}`);
+    pdfUrlsToMerge.push(`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(props.invoice.lcCopyPath)}`);
   }
   if (props.invoice.inspectionCertificatePath && !isImage(props.invoice.inspectionCertificatePath)) {
-    pdfUrlsToMerge.push(`http://localhost/Automobile/backend/api/image.php?path=${encodeURIComponent(props.invoice.inspectionCertificatePath)}`);
+    pdfUrlsToMerge.push(`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(props.invoice.inspectionCertificatePath)}`);
   }
 
   if (pdfUrlsToMerge.length === 0) {

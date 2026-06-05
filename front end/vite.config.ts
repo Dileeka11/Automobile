@@ -9,10 +9,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
+      '/backend/api': {
         target: 'http://localhost/Automobile/backend/api',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/backend\/api/, ''),
       },
     },
   },
