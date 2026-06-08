@@ -342,30 +342,40 @@ export default function Invoices() {
                         </div>
                       </td>
                       <td>
-                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={!!i.isLcComplete}
-                            onChange={() => handleToggleLc(i)}
-                            className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300"
-                          />
-                          <span className={`text-xs font-medium ${i.isLcComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            {i.isLcComplete ? 'Complete' : 'Pending'}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!i.isLcComplete}
+                              onChange={() => handleToggleLc(i)}
+                              className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300"
+                            />
+                            <span className={`text-xs font-medium ${i.isLcComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
+                              {i.isLcComplete ? 'Complete' : 'Pending'}
+                            </span>
+                          </label>
+                          <span className="text-[10px] font-mono text-slate-500 ml-[22px]">
+                            {formatCurrency(q?.lcAmount || 0)}
                           </span>
-                        </label>
+                        </div>
                       </td>
                       <td>
-                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={!!i.isTtComplete}
-                            onChange={() => handleToggleTt(i)}
-                            className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300"
-                          />
-                          <span className={`text-xs font-medium ${i.isTtComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            {i.isTtComplete ? 'Complete' : 'Pending'}
+                        <div className="flex flex-col gap-0.5">
+                          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!i.isTtComplete}
+                              onChange={() => handleToggleTt(i)}
+                              className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300"
+                            />
+                            <span className={`text-xs font-medium ${i.isTtComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
+                              {i.isTtComplete ? 'Complete' : 'Pending'}
+                            </span>
+                          </label>
+                          <span className="text-[10px] font-mono text-slate-500 ml-[22px]">
+                            {formatCurrency(i.ttAmount || 0)}
                           </span>
-                        </label>
+                        </div>
                       </td>
                       <td>{formatCurrency(i.advanceAmount)}</td>
                       <td className="font-semibold">{formatCurrency(i.balance)}</td>

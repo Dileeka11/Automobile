@@ -138,17 +138,24 @@ switch ($method) {
                 $fields = [];
                 $params = [];
 
-                if (isset($_POST['status'])) {
+                $currentBalance = isset($_POST['balance']) ? (float)$_POST['balance'] : null;
+                $currentStatus = isset($_POST['status']) ? strtoupper($_POST['status']) : null;
+
+                if ($currentBalance !== null && $currentBalance <= 0) {
+                    $currentStatus = 'PAID';
+                }
+
+                if ($currentStatus !== null) {
                     $fields[] = "status = ?";
-                    $params[] = strtoupper($_POST['status']);
+                    $params[] = $currentStatus;
                 }
                 if (isset($_POST['advanceAmount'])) {
                     $fields[] = "advance_amount = ?";
                     $params[] = (float)$_POST['advanceAmount'];
                 }
-                if (isset($_POST['balance'])) {
+                if ($currentBalance !== null) {
                     $fields[] = "balance = ?";
-                    $params[] = (float)$_POST['balance'];
+                    $params[] = $currentBalance;
                 }
                 if (isset($_POST['isLcComplete'])) {
                     $fields[] = "is_lc_complete = ?";
@@ -286,17 +293,24 @@ switch ($method) {
             $fields = [];
             $params = [];
 
-            if (isset($data['status'])) {
+            $currentBalance = isset($data['balance']) ? (float)$data['balance'] : null;
+            $currentStatus = isset($data['status']) ? strtoupper($data['status']) : null;
+
+            if ($currentBalance !== null && $currentBalance <= 0) {
+                $currentStatus = 'PAID';
+            }
+
+            if ($currentStatus !== null) {
                 $fields[] = "status = ?";
-                $params[] = strtoupper($data['status']);
+                $params[] = $currentStatus;
             }
             if (isset($data['advanceAmount'])) {
                 $fields[] = "advance_amount = ?";
                 $params[] = $data['advanceAmount'];
             }
-            if (isset($data['balance'])) {
+            if ($currentBalance !== null) {
                 $fields[] = "balance = ?";
-                $params[] = $data['balance'];
+                $params[] = $currentBalance;
             }
             if (isset($data['isLcComplete'])) {
                 $fields[] = "is_lc_complete = ?";
