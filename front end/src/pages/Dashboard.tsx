@@ -25,9 +25,19 @@ function KPI({ icon: Icon, label, value, accent }: { icon: any; label: string; v
 }
 
 export default function Dashboard() {
-  const { quotations, invoices, makeModels, vehicleModels } = useDataStore();
+  const { quotations, invoices, makeModels, vehicleModels, cashbookExpenses } = useDataStore();
 
-  const totalRevenue = invoices.reduce((s, i) => s + i.balance + i.advanceAmount, 0);
+  const totalInflow = invoices.reduce((s, i) => {
+    const balanceVal = Number(i.balance || 0);
+    if (balanceVal <= 0) {
+      const q = quotations.find((q) => q.id === i.quotationId);
+      return s + Number(q?.serviceCharge || 0);
+    }
+    return s;
+  }, 0);
+
+  const totalOutflow = cashbookExpenses.reduce((s, exp) => s + Number(exp.amount), 0);
+  const totalRevenue = totalInflow - totalOutflow;
   const pendingInvoices = invoices.filter((i) => i.status === 'pending').length;
 
   const monthlyData = useMemo(() => {
