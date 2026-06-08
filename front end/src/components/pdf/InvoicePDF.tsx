@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image, Svg, Path, Rect, Circle, Line, G, Polygon } from '@react-pdf/renderer';
 import { PDFDocument } from 'pdf-lib';
 import { Invoice, MakeModel, Quotation, VehicleModel } from '@/types';
-import { formatCurrency, formatDate, vehicleTotal } from '@/utils';
+import { formatCurrency, formatDate, quotationTotal } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
@@ -21,12 +21,12 @@ const LOGO_URL = '/logo.png';
 const s = StyleSheet.create({
   page: {
     position: 'relative',
-    fontSize: 10,
+    fontSize: 8,
     fontFamily: 'Helvetica',
     color: DARK_TEXT,
-    paddingTop: 100,
-    paddingBottom: 100,
-    paddingHorizontal: 40,
+    paddingTop: 55,
+    paddingBottom: 40,
+    paddingHorizontal: 30,
   },
   /* ── Header area ── */
   headerBar: {
@@ -34,15 +34,15 @@ const s = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 90,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   logoImage: {
-    width: 75,
-    height: 80,
+    width: 45,
+    height: 48,
     objectFit: 'contain',
   },
   /* ── Document title ── */
@@ -50,25 +50,25 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
-    marginTop: 10,
+    marginBottom: 6,
+    marginTop: 0,
   },
   docTitleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
   },
   docTitle: {
-    fontSize: 24,
+    fontSize: 16,
     fontFamily: 'Helvetica-Bold',
     color: NAVY,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    fontSize: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
   },
   statusPaid: {
@@ -83,85 +83,90 @@ const s = StyleSheet.create({
     alignItems: 'flex-end',
   },
   docMeta: {
-    fontSize: 9,
+    fontSize: 7,
     color: GRAY_TEXT,
-    marginBottom: 2,
+    marginBottom: 0.5,
   },
   docMetaValue: {
-    fontSize: 10,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     color: DARK_TEXT,
-    marginBottom: 4,
+    marginBottom: 1.5,
   },
   /* ── Divider ── */
   divider: {
-    height: 2,
+    height: 1,
     backgroundColor: NAVY,
-    marginBottom: 16,
+    marginBottom: 6,
   },
   /* ── Section ── */
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 8.5,
     fontFamily: 'Helvetica-Bold',
     color: WHITE,
     backgroundColor: NAVY,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    marginTop: 14,
-    letterSpacing: 1,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    marginBottom: 3,
+    marginTop: 4,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   /* ── Two-column info ── */
   twoCol: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 4,
+    gap: 8,
+    marginBottom: 2,
   },
   col: {
     flex: 1,
-    padding: 8,
+    padding: 4,
     backgroundColor: LIGHT_BLUE,
-    borderRadius: 3,
+    borderRadius: 2,
+  },
+  singleCol: {
+    padding: 4,
+    backgroundColor: LIGHT_BLUE,
+    borderRadius: 2,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 1.5,
   },
   label: {
-    width: 80,
+    width: 50,
     color: GRAY_TEXT,
-    fontSize: 9,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
   },
   value: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 7,
     color: DARK_TEXT,
   },
   /* ── Cost table ── */
   table: {
-    marginTop: 6,
+    marginTop: 2,
     borderWidth: 1,
     borderColor: BORDER_GRAY,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   tHead: {
     flexDirection: 'row',
     backgroundColor: NAVY,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
   },
   tHeadCell: {
     color: WHITE,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
+    fontSize: 7.5,
   },
   tRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderBottomWidth: 0.5,
     borderBottomColor: BORDER_GRAY,
   },
   tRowAlt: {
@@ -169,75 +174,75 @@ const s = StyleSheet.create({
   },
   tCellLabel: {
     flex: 2,
-    fontSize: 9,
+    fontSize: 7.5,
   },
   tCellValue: {
     flex: 1,
     textAlign: 'right',
-    fontSize: 9,
+    fontSize: 7.5,
   },
   totalRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     backgroundColor: NAVY,
   },
   totalLabel: {
     flex: 2,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 11,
+    fontSize: 8.5,
     color: WHITE,
   },
   totalValue: {
     flex: 1,
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 11,
+    fontSize: 8.5,
     color: WHITE,
   },
   /* ── Deduction rows ── */
   deductionRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderBottomWidth: 0.5,
     borderBottomColor: BORDER_GRAY,
     backgroundColor: '#f0fdf4',
   },
   deductionLabel: {
     flex: 2,
-    fontSize: 9,
+    fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
     color: GREEN,
   },
   deductionValue: {
     flex: 1,
     textAlign: 'right',
-    fontSize: 9,
+    fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
     color: GREEN,
   },
   /* ── Balance ── */
   balanceRow: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 6,
     backgroundColor: '#fef3c7',
-    borderRadius: 4,
-    marginTop: 10,
+    borderRadius: 3,
+    marginTop: 4,
     borderWidth: 1,
     borderColor: '#fbbf24',
   },
   balanceLabel: {
     flex: 2,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 14,
+    fontSize: 10,
     color: AMBER,
   },
   balanceValue: {
     flex: 1,
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 14,
+    fontSize: 10,
     color: AMBER,
   },
   balancePaidRow: {
@@ -250,17 +255,17 @@ const s = StyleSheet.create({
   /* ── Payment status ── */
   milestoneBox: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 4,
   },
   milestoneItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    padding: 8,
-    borderRadius: 3,
-    borderWidth: 1,
+    gap: 4,
+    padding: 4,
+    borderRadius: 2,
+    borderWidth: 0.5,
   },
   milestoneComplete: {
     backgroundColor: '#ecfdf5',
@@ -271,45 +276,45 @@ const s = StyleSheet.create({
     borderColor: '#fed7aa',
   },
   milestoneLabel: {
-    fontSize: 9,
+    fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
   },
   milestoneStatus: {
-    fontSize: 8,
-    marginTop: 1,
+    fontSize: 6.5,
+    marginTop: 0,
   },
   /* ── Logistics Schedule ── */
   logisticsBox: {
-    marginTop: 10,
-    padding: 8,
-    borderRadius: 3,
-    borderWidth: 1,
+    marginTop: 4,
+    padding: 4,
+    borderRadius: 2,
+    borderWidth: 0.5,
     borderColor: BORDER_GRAY,
     backgroundColor: '#f8fafc',
   },
   logisticsTitle: {
-    fontSize: 9,
+    fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
     color: NAVY,
-    marginBottom: 6,
-    borderBottomWidth: 1,
+    marginBottom: 2,
+    borderBottomWidth: 0.5,
     borderBottomColor: '#e2e8f0',
-    paddingBottom: 2,
+    paddingBottom: 1,
   },
   logisticsRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 8,
   },
   logisticsItem: {
     flex: 1,
   },
   logisticsLabel: {
-    fontSize: 7.5,
+    fontSize: 6.5,
     color: GRAY_TEXT,
-    marginBottom: 2,
+    marginBottom: 0.5,
   },
   logisticsValue: {
-    fontSize: 9,
+    fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
     color: RED,
   },
@@ -317,29 +322,29 @@ const s = StyleSheet.create({
   sigRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 24,
+    marginTop: 10,
   },
   sigBlock: {
     alignItems: 'center',
-    width: 180,
+    width: 140,
   },
   sigLine: {
-    width: 150,
-    height: 1,
+    width: 120,
+    height: 0.5,
     backgroundColor: DARK_TEXT,
-    marginTop: 35,
-    marginBottom: 4,
+    marginTop: 18,
+    marginBottom: 2,
   },
   sigLabel: {
-    fontSize: 9,
+    fontSize: 7,
     color: GRAY_TEXT,
   },
   /* ── Footer ── */
   footerContent: {
     position: 'absolute',
-    bottom: 8,
-    left: 30,
-    right: 30,
+    bottom: 5,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -347,14 +352,14 @@ const s = StyleSheet.create({
   footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 3,
   },
   footerText: {
-    fontSize: 8,
+    fontSize: 6.5,
     color: GRAY_TEXT,
   },
   footerBold: {
-    fontSize: 8,
+    fontSize: 6.5,
     fontFamily: 'Helvetica-Bold',
     color: DARK_TEXT,
   },
@@ -367,8 +372,8 @@ const s = StyleSheet.create({
     opacity: 0.06,
   },
   watermarkImage: {
-    width: 280,
-    height: 300,
+    width: 220,
+    height: 240,
     objectFit: 'contain',
   },
   attachmentPage: {
@@ -528,15 +533,15 @@ const isImage = (path?: string | null) => {
 
 export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachments = true }: Props) {
   const rows: [string, number][] = [
-    ['CIF Value', vehicle.cifValue],
-    ['LC Amount', vehicle.lcAmount],
+    ['CIF Value', quotation.cifValue || 0],
+    ['LC Amount', quotation.lcAmount || 0],
     ['TT Amount', invoice.ttAmount],
-    ['Tax Amount', vehicle.taxAmount],
-    ['Service Charge', vehicle.serviceCharge],
-    ['Clearing Charge', vehicle.clearingCharge],
-    ['DMI Charge', vehicle.dmiCharge],
+    ['Tax Amount', quotation.taxAmount || 0],
+    ['Service Charge', quotation.serviceCharge || 0],
+    ['Clearing Charge', quotation.clearingCharge || 0],
+    ['DMI Charge', quotation.dmiCharge || 0],
   ];
-  const total = vehicleTotal(vehicle);
+  const total = quotationTotal(quotation);
   const isPaid = invoice.status === 'paid';
 
   return (
@@ -590,14 +595,14 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
 
         {/* ── Vehicle ── */}
         <Text style={s.sectionTitle}>Vehicle Information</Text>
-        <View style={s.col}>
+        <View style={s.singleCol}>
           <View style={s.row}>
             <Text style={s.label}>Vehicle:</Text>
             <Text style={s.value}>{make.name} {vehicle.name} — {vehicle.engineCapacity}, {vehicle.color}, {vehicle.grade}, {String(vehicle.year)}</Text>
           </View>
           <View style={s.row}>
             <Text style={s.label}>Mileage:</Text>
-            <Text style={s.value}>{vehicle.mileage.toLocaleString()} km</Text>
+            <Text style={s.value}>{(quotation.mileage || 0).toLocaleString()} km</Text>
           </View>
         </View>
 
@@ -627,14 +632,14 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
           {invoice.isLcComplete && (
             <View style={s.deductionRow}>
               <Text style={s.deductionLabel}>✓ LC Payment Completed (Deducted)</Text>
-              <Text style={s.deductionValue}>- {formatCurrency(vehicle.lcAmount)}</Text>
+              <Text style={s.deductionValue}>- {formatCurrency(quotation.lcAmount || 0)}</Text>
             </View>
           )}
           {/* TT Deduction */}
           {invoice.isTtComplete && (
             <View style={s.deductionRow}>
               <Text style={s.deductionLabel}>✓ TT Payment Completed (Deducted)</Text>
-              <Text style={s.deductionValue}>- {formatCurrency(vehicle.ttAmount)}</Text>
+              <Text style={s.deductionValue}>- {formatCurrency(quotation.ttAmount || 0)}</Text>
             </View>
           )}
         </View>

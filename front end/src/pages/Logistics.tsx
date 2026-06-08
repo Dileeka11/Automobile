@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useDataStore, toast } from '@/store';
 import { LogisticsItem } from '@/types';
 import Modal from '@/components/ui/Modal';
@@ -100,7 +101,20 @@ export default function Logistics() {
   };
 
   const handleDeleteDoc = async (id: number) => {
-    if (!selectedItem || !confirm("Are you sure you want to delete this document?")) return;
+    if (!selectedItem) return;
+    
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to recover this document!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await deleteDocument(id);
       toast.success("Document deleted");
@@ -158,10 +172,10 @@ export default function Logistics() {
 
       <div className="flex-1 min-h-0 flex flex-col">
         <div className="card overflow-hidden flex-1 min-h-0 flex flex-col">
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="table w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+            <table className="table w-full text-left border-collapse relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="px-6 py-4">Vehicle Details</th>
                   <th className="px-6 py-4">Chassis Number</th>
                   <th className="px-6 py-4">Customer</th>

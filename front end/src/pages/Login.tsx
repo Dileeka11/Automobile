@@ -19,7 +19,7 @@ export default function Login() {
     try {
       await login(data.username, data.password);
       toast.success('Successfully logged in!');
-      navigate('/');
+      navigate('/admin');
     } catch (e: any) {
       Swal.fire({
         icon: 'error',

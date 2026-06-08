@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS make_models (
     name VARCHAR(255) NOT NULL
 );
 
--- Vehicle Models Table (Template specifications and default costs)
+-- Vehicle Models Table (Template specifications)
 CREATE TABLE IF NOT EXISTS vehicle_models (
     id VARCHAR(50) PRIMARY KEY,
     make_model_id VARCHAR(50) NOT NULL,
@@ -13,14 +13,6 @@ CREATE TABLE IF NOT EXISTS vehicle_models (
     color VARCHAR(50),
     grade VARCHAR(50),
     year INT NOT NULL,
-    mileage INT DEFAULT 0,
-    cif_value DECIMAL(15, 2) NOT NULL,
-    lc_amount DECIMAL(15, 2) NOT NULL,
-    tt_amount DECIMAL(15, 2) NOT NULL,
-    tax_amount DECIMAL(15, 2) NOT NULL,
-    service_charge DECIMAL(15, 2) NOT NULL,
-    clearing_charge DECIMAL(15, 2) NOT NULL,
-    dmi_charge DECIMAL(15, 2) NOT NULL,
     FOREIGN KEY (make_model_id) REFERENCES make_models(id) ON DELETE CASCADE
 );
 
@@ -66,7 +58,9 @@ CREATE TABLE IF NOT EXISTS quotations (
     tax_amount DECIMAL(15, 2) NOT NULL,
     clearing_amount DECIMAL(15, 2) NOT NULL,
     service_charge DECIMAL(15, 2) NOT NULL,
-    total_estimated DECIMAL(15, 2) GENERATED ALWAYS AS (cif_value + tax_amount + clearing_amount + service_charge) STORED,
+    mileage INT DEFAULT 0,
+    dmi_charge DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    total_estimated DECIMAL(15, 2) GENERATED ALWAYS AS (cif_value + tax_amount + clearing_amount + service_charge + dmi_charge) STORED,
     status ENUM('Draft', 'Sent', 'Accepted', 'Rejected') DEFAULT 'Draft',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
@@ -80,6 +74,23 @@ CREATE TABLE IF NOT EXISTS agreements (
     signature_file_path TEXT,
     is_signed BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
+);
+
+-- App Config Table
+CREATE TABLE IF NOT EXISTS app_config (
+    `key` VARCHAR(50) PRIMARY KEY,
+    `value` TEXT NOT NULL
+);
+
+-- Inquiries Table
+CREATE TABLE IF NOT EXISTS inquiries (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    message TEXT NOT NULL,
+    status ENUM('New', 'Read', 'Replied') DEFAULT 'New',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Invoices Table

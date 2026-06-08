@@ -3,7 +3,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo } from 'lucide-react';
-import { useDataStore, toast, vehicleTotal } from '@/store';
+import { useDataStore, toast, quotationTotal } from '@/store';
 import { Invoice } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -57,17 +57,17 @@ export default function Invoices() {
   const selectedQuotation = useMemo(() => quotations.find((q) => q.id === selectedQId), [quotations, selectedQId]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedQuotation?.vehicleModelId), [vehicleModels, selectedQuotation]);
   const selectedMake = useMemo(() => makeModels.find((m) => m.id === selectedQuotation?.makeModelId), [makeModels, selectedQuotation]);
-  const total = selectedVehicle ? vehicleTotal(selectedVehicle) : 0;
+  const total = selectedQuotation ? quotationTotal(selectedQuotation) : 0;
 
   const balance = useMemo(() => {
-    if (!selectedVehicle) return 0;
-    const lcVal = selectedVehicle.lcAmount;
-    const ttVal = selectedVehicle.ttAmount;
+    if (!selectedQuotation) return 0;
+    const lcVal = selectedQuotation.lcAmount || 0;
+    const ttVal = selectedQuotation.ttAmount || 0;
     let deduction = 0;
     if (isLcChecked) deduction += lcVal;
     if (isTtChecked) deduction += ttVal;
     return Math.max(0, total - Number(advance || 0) - deduction);
-  }, [selectedVehicle, total, advance, isLcChecked, isTtChecked]);
+  }, [selectedQuotation, total, advance, isLcChecked, isTtChecked]);
 
   // Reminders calculation (>= 5 days since creation)
   const reminders = useMemo(() => {
@@ -132,8 +132,7 @@ export default function Invoices() {
   const handleQuotationChange = (qId: string) => {
     setValue('quotationId', qId);
     const q = quotations.find((x) => x.id === qId);
-    const v = vehicleModels.find((vm) => vm.id === q?.vehicleModelId);
-    if (v) setValue('ttAmount', v.ttAmount);
+    if (q) setValue('ttAmount', q.ttAmount || 0);
   };
 
   const handleDeleteYardPic = (picId: number) => {
@@ -149,16 +148,16 @@ export default function Invoices() {
   };
 
   const onSubmit = async (data: FormData) => {
-    if (!selectedVehicle) { toast.error('Invalid quotation'); return; }
+    if (!selectedQuotation) { toast.error('Invalid quotation'); return; }
     
-    const lcAmountVal = selectedVehicle.lcAmount;
-    const ttAmountVal = selectedVehicle.ttAmount;
+    const lcAmountVal = selectedQuotation.lcAmount || 0;
+    const ttAmountVal = selectedQuotation.ttAmount || 0;
     
     let formDeduction = 0;
     if (data.isLcComplete) formDeduction += lcAmountVal;
     if (data.isTtComplete) formDeduction += ttAmountVal;
     
-    const balanceVal = Math.max(0, vehicleTotal(selectedVehicle) - data.advanceAmount - formDeduction);
+    const balanceVal = Math.max(0, quotationTotal(selectedQuotation) - data.advanceAmount - formDeduction);
 
     try {
       if (editingInvoice) {
@@ -240,10 +239,9 @@ export default function Invoices() {
   const handleToggleLc = (i: Invoice) => {
     const newStatus = !i.isLcComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
-    const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
-    const totalVal = v ? vehicleTotal(v) : 0;
-    const lcVal = v ? v.lcAmount : 0;
-    const ttVal = v ? v.ttAmount : 0;
+    const totalVal = q ? quotationTotal(q) : 0;
+    const lcVal = q ? (q.lcAmount || 0) : 0;
+    const ttVal = q ? (q.ttAmount || 0) : 0;
 
     let deduction = 0;
     if (newStatus) deduction += lcVal;
@@ -261,10 +259,9 @@ export default function Invoices() {
   const handleToggleTt = (i: Invoice) => {
     const newStatus = !i.isTtComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
-    const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
-    const totalVal = v ? vehicleTotal(v) : 0;
-    const lcVal = v ? v.lcAmount : 0;
-    const ttVal = v ? v.ttAmount : 0;
+    const totalVal = q ? quotationTotal(q) : 0;
+    const lcVal = q ? (q.lcAmount || 0) : 0;
+    const ttVal = q ? (q.ttAmount || 0) : 0;
 
     let deduction = 0;
     if (i.isLcComplete) deduction += lcVal;
@@ -308,9 +305,9 @@ export default function Invoices() {
 
       <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No invoices" /> : (
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="table">
-              <thead>
+          <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                 <tr>
                   <th>Invoice</th>
                   <th>Quotation</th>

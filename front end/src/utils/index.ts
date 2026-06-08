@@ -1,4 +1,4 @@
-import { VehicleModel } from '@/types';
+import { Quotation } from '@/types';
 
 export const generateId = (prefix = ''): string =>
   `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
@@ -20,8 +20,8 @@ export const formatDateTime = (iso: string): string =>
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
-export const vehicleTotal = (v: VehicleModel): number =>
-  v.cifValue + v.lcAmount + v.ttAmount + v.taxAmount + v.serviceCharge + v.clearingCharge + v.dmiCharge;
+export const quotationTotal = (q: Quotation): number =>
+  (q.cifValue || 0) + (q.lcAmount || 0) + (q.ttAmount || 0) + (q.taxAmount || 0) + (q.serviceCharge || 0) + (q.clearingCharge || 0) + (q.dmiCharge || 0);
 
 export const cn = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(' ');

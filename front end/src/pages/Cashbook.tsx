@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
 import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2 } from 'lucide-react';
@@ -94,7 +95,17 @@ export default function Cashbook() {
   };
 
   const handleDeleteExpense = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this expense record?')) {
+    const result = await Swal.fire({
+      title: 'Delete Expense?',
+      text: "You won't be able to recover this expense record!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteCashbookExpense(id);
         toast.success('Expense record deleted successfully');
@@ -170,7 +181,7 @@ export default function Cashbook() {
               </span>
             </div>
 
-            <div className="overflow-auto flex-1 min-h-0">
+            <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
               {loading && cashbookExpenses.length === 0 ? (
                 <div className="p-8 text-center text-slate-400 text-sm">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-500" />
@@ -179,8 +190,8 @@ export default function Cashbook() {
               ) : cashbookExpenses.length === 0 ? (
                 <EmptyState title="No expenses recorded yet" />
               ) : (
-                <table className="table min-w-full">
-                  <thead>
+                <table className="table min-w-full relative">
+                  <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                     <tr>
                       <th>Date</th>
                       <th>Category</th>
@@ -233,12 +244,12 @@ export default function Cashbook() {
               </span>
             </div>
 
-            <div className="overflow-auto flex-1 min-h-0">
+            <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
               {inflowItems.length === 0 ? (
                 <EmptyState title="No service charge revenues generated yet" />
               ) : (
-                <table className="table min-w-full">
-                  <thead>
+                <table className="table min-w-full relative">
+                  <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                     <tr>
                       <th>Invoice ID</th>
                       <th>Customer Name</th>

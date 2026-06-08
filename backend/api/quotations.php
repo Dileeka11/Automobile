@@ -15,7 +15,14 @@ switch ($method) {
                 c.email,
                 v.make_model_id as makeModelId,
                 v.vehicle_model_id as vehicleModelId,
+                q.cif_value as cifValue,
+                q.lc_amount as lcAmount,
+                q.tt_amount as ttAmount,
+                q.tax_amount as taxAmount,
+                q.clearing_amount as clearingCharge,
                 q.service_charge as serviceCharge,
+                q.mileage,
+                q.dmi_charge as dmiCharge,
                 q.created_at as createdAt,
                 q.status
             FROM quotations q
@@ -23,7 +30,31 @@ switch ($method) {
             JOIN customers c ON v.customer_id = c.id
             ORDER BY q.created_at DESC
         ");
-        sendJson($stmt->fetchAll());
+        $rows = $stmt->fetchAll();
+        $results = [];
+        foreach ($rows as $row) {
+            $results[] = [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'address' => $row['address'],
+                'nic' => $row['nic'],
+                'mobileNo' => $row['mobileNo'],
+                'email' => $row['email'],
+                'makeModelId' => $row['makeModelId'],
+                'vehicleModelId' => $row['vehicleModelId'],
+                'cifValue' => (float)$row['cifValue'],
+                'lcAmount' => (float)$row['lcAmount'],
+                'ttAmount' => (float)$row['ttAmount'],
+                'taxAmount' => (float)$row['taxAmount'],
+                'clearingCharge' => (float)$row['clearingCharge'],
+                'serviceCharge' => (float)$row['serviceCharge'],
+                'mileage' => (int)$row['mileage'],
+                'dmiCharge' => (float)$row['dmiCharge'],
+                'createdAt' => $row['createdAt'],
+                'status' => $row['status'],
+            ];
+        }
+        sendJson($results);
         break;
 
     case 'POST':
@@ -61,7 +92,7 @@ switch ($method) {
                 ]);
             }
 
-            // 2. Fetch Vehicle Model Template Specs
+            // 2. Fetch Vehicle Model Template Specs (for vehicle info only, not pricing)
             $stmt = $pdo->prepare("SELECT * FROM vehicle_models WHERE id = ?");
             $stmt->execute([$data['vehicleModelId']]);
             $vm = $stmt->fetch();
@@ -85,23 +116,25 @@ switch ($method) {
                 $vm['year'],
                 $vm['grade'],
                 $vm['engine_capacity'],
-                $vm['mileage'],
+                $data['mileage'] ?? 0,
                 $vm['color']
             ]);
             $vehicleId = $pdo->lastInsertId();
 
-            // 4. Create Quotation
+            // 4. Create Quotation with financial data from form
             $qId = $data['id'] ?? ('Q' . strtoupper(substr(uniqid(), -5)));
-            $stmt = $pdo->prepare("INSERT INTO quotations (id, vehicle_id, cif_value, lc_amount, tt_amount, tax_amount, clearing_amount, service_charge, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Draft')");
+            $stmt = $pdo->prepare("INSERT INTO quotations (id, vehicle_id, cif_value, lc_amount, tt_amount, tax_amount, clearing_amount, service_charge, mileage, dmi_charge, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft')");
             $stmt->execute([
                 $qId,
                 $vehicleId,
-                $vm['cif_value'],
-                $vm['lc_amount'],
-                $vm['tt_amount'],
-                $vm['tax_amount'],
-                $vm['clearing_charge'],
-                $vm['service_charge']
+                $data['cifValue'] ?? 0,
+                $data['lcAmount'] ?? 0,
+                $data['ttAmount'] ?? 0,
+                $data['taxAmount'] ?? 0,
+                $data['clearingCharge'] ?? 0,
+                $data['serviceCharge'] ?? 0,
+                $data['mileage'] ?? 0,
+                $data['dmiCharge'] ?? 0
             ]);
 
             // 5. Create associated Agreement
@@ -120,6 +153,14 @@ switch ($method) {
                 'email' => $data['email'] ?? '',
                 'makeModelId' => $vm['make_model_id'],
                 'vehicleModelId' => $vm['id'],
+                'cifValue' => (float)($data['cifValue'] ?? 0),
+                'lcAmount' => (float)($data['lcAmount'] ?? 0),
+                'ttAmount' => (float)($data['ttAmount'] ?? 0),
+                'taxAmount' => (float)($data['taxAmount'] ?? 0),
+                'clearingCharge' => (float)($data['clearingCharge'] ?? 0),
+                'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
+                'mileage' => (int)($data['mileage'] ?? 0),
+                'dmiCharge' => (float)($data['dmiCharge'] ?? 0),
                 'createdAt' => date('c')
             ]);
 
@@ -181,24 +222,26 @@ switch ($method) {
                         $vm['year'],
                         $vm['grade'],
                         $vm['engine_capacity'],
-                        $vm['mileage'],
+                        $data['mileage'] ?? 0,
                         $vm['color'],
                         $vehicleId
                     ]);
-
-                    // Update quotation values to freeze new pricing
-                    $stmt = $pdo->prepare("UPDATE quotations SET cif_value = ?, lc_amount = ?, tt_amount = ?, tax_amount = ?, clearing_amount = ?, service_charge = ? WHERE id = ?");
-                    $stmt->execute([
-                        $vm['cif_value'],
-                        $vm['lc_amount'],
-                        $vm['tt_amount'],
-                        $vm['tax_amount'],
-                        $vm['clearing_charge'],
-                        $vm['service_charge'],
-                        $id
-                    ]);
                 }
             }
+
+            // Update quotation financial values from form
+            $stmt = $pdo->prepare("UPDATE quotations SET cif_value = ?, lc_amount = ?, tt_amount = ?, tax_amount = ?, clearing_amount = ?, service_charge = ?, mileage = ?, dmi_charge = ? WHERE id = ?");
+            $stmt->execute([
+                $data['cifValue'] ?? 0,
+                $data['lcAmount'] ?? 0,
+                $data['ttAmount'] ?? 0,
+                $data['taxAmount'] ?? 0,
+                $data['clearingCharge'] ?? 0,
+                $data['serviceCharge'] ?? 0,
+                $data['mileage'] ?? 0,
+                $data['dmiCharge'] ?? 0,
+                $id
+            ]);
 
             $pdo->commit();
             sendJson($data);

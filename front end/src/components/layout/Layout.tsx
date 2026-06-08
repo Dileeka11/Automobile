@@ -6,17 +6,18 @@ import ToastContainer from '@/components/ui/Toast';
 import { useDataStore } from '@/store';
 
 const titles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/make-models': 'Make Models',
-  '/vehicle-models': 'Vehicle Models',
-  '/quotations': 'Quotations',
-  '/invoices': 'Invoices',
-  '/clearing-agents': 'Clearing Agents',
-  '/logistics': 'Logistics & Vault',
-  '/investors': 'Investors & Split',
-  '/reports': 'Accounting & Reports',
-  '/cashbook': 'Corporate Cashbook',
-  '/leads': 'CRM Leads',
+  '/admin': 'Dashboard',
+  '/admin/make-models': 'Make Models',
+  '/admin/vehicle-models': 'Vehicle Models',
+  '/admin/quotations': 'Quotations',
+  '/admin/invoices': 'Invoices',
+  '/admin/clearing-agents': 'Clearing Agents',
+  '/admin/logistics': 'Logistics & Vault',
+  '/admin/investors': 'Investors & Split',
+  '/admin/reports': 'Accounting & Reports',
+  '/admin/cashbook': 'Corporate Cashbook',
+  '/admin/leads': 'CRM Leads',
+  '/admin/users': 'User Priorities'
 };
 
 export default function Layout() {
@@ -33,8 +34,8 @@ export default function Layout() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (currentUser?.role === 'agent' && pathname !== '/clearing-agents') {
-      navigate('/clearing-agents', { replace: true });
+    if (currentUser?.role === 'agent' && pathname !== '/admin/clearing-agents') {
+      navigate('/admin/clearing-agents', { replace: true });
     }
   }, [currentUser, pathname, navigate]);
 

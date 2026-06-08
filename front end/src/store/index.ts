@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Invoice, MakeModel, Quotation, ToastMessage, VehicleModel, Lead, Investor, Investment, LogisticsItem, Expense, User, CashbookExpense } from '@/types';
-import { vehicleTotal } from '@/utils';
+import { quotationTotal } from '@/utils';
 
 // Helper for JSON requests
 async function apiFetch(url: string, options?: RequestInit) {
@@ -469,7 +469,7 @@ export const useDataStore = create<DataState>((set) => ({
   },
 }));
 
-export { vehicleTotal };
+export { quotationTotal };
 
 // ---------------- Toast Store ----------------
 interface ToastState {

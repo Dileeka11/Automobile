@@ -79,10 +79,10 @@ export default function Reports() {
         {/* VAT Returns Table */}
         <div className="card p-5 space-y-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-1.5"><Receipt className="w-5 h-5 text-brand-600" /> VAT Liability Returns</h3>
-          <div className="overflow-x-auto">
-            <table className="table w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase bg-slate-50">
+          <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
+            <table className="table w-full text-left text-xs border-collapse relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase">
                   <th className="px-4 py-3">Quotation</th>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3 text-right">Service Charge</th>
@@ -109,10 +109,10 @@ export default function Reports() {
         {/* Expenses Summary */}
         <div className="card p-5 space-y-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-1.5"><Coins className="w-5 h-5 text-brand-600" /> Operating Expenses Breakdown</h3>
-          <div className="overflow-x-auto">
-            <table className="table w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase bg-slate-50">
+          <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
+            <table className="table w-full text-left text-xs border-collapse relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase">
                   <th className="px-4 py-3">Expense Category</th>
                   <th className="px-4 py-3">Incurred Count</th>
                   <th className="px-4 py-3 text-right">Total Outflow</th>
@@ -140,10 +140,10 @@ export default function Reports() {
       {/* Net Profit Margin per vehicle */}
       <div className="card p-5 space-y-4">
         <h3 className="font-bold text-slate-800 flex items-center gap-1.5"><FileSpreadsheet className="w-5 h-5 text-brand-600" /> Vehicle Net Profit Margins</h3>
-        <div className="overflow-x-auto">
-          <table className="table w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase bg-slate-50">
+        <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+          <table className="table w-full text-left text-xs border-collapse relative">
+            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+              <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase">
                 <th className="px-4 py-3">Vehicle Details</th>
                 <th className="px-4 py-3">Chassis No</th>
                 <th className="px-4 py-3 text-right">Total Revenue</th>

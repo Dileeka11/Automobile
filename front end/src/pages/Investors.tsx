@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useDataStore, toast } from '@/store';
 import Modal from '@/components/ui/Modal';
 import { Landmark, Users, Plus, BadgeDollarSign, CheckCircle2 } from 'lucide-react';
@@ -81,7 +82,17 @@ export default function Investors() {
   };
 
   const handleSettle = async (id: number) => {
-    if (!confirm("Are you sure you want to settle this investment? This will lock in the ROI profit share.")) return;
+    const result = await Swal.fire({
+      title: 'Settle Investment?',
+      text: "This will lock in the ROI profit share and mark it as settled.",
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, settle it!'
+    });
+
+    if (!result.isConfirmed) return;
     try {
       await settleInvestment(id);
       toast.success("Investment settled successfully");
@@ -138,10 +149,10 @@ export default function Investors() {
           </div>
 
           <div className="card overflow-hidden flex-1 min-h-0 flex flex-col">
-            <div className="overflow-auto flex-1 min-h-0">
-              <table className="table w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+              <table className="table w-full text-left border-collapse relative">
+                <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
+                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-4">Investor</th>
                     <th className="px-6 py-4">Vehicle</th>
                     <th className="px-6 py-4">Amount Funded</th>

@@ -42,10 +42,10 @@ export default function MakeModels() {
         <button onClick={openAdd} className="btn-primary"><Plus className="w-4 h-4" /> Add Make Model</button>
       </div>
 
-      <div className="table-wrap flex-1 overflow-auto min-h-0">
+      <div className="table-wrap flex-1 overflow-auto overflow-y-auto min-h-0">
         {filtered.length === 0 ? <EmptyState title="No make models" message="Click 'Add Make Model' to create one." /> : (
-          <table className="table">
-            <thead><tr><th>ID</th><th>Name</th><th className="text-right">Actions</th></tr></thead>
+          <table className="table w-full relative">
+            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200"><tr><th>ID</th><th>Name</th><th className="text-right">Actions</th></tr></thead>
             <tbody>
               {filtered.map((m) => (
                 <tr key={m.id}>

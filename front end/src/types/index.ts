@@ -11,14 +11,6 @@ export interface VehicleModel {
   color: string;
   grade: string;
   year: number;
-  mileage: number;
-  cifValue: number;
-  lcAmount: number;
-  ttAmount: number;
-  taxAmount: number;
-  serviceCharge: number;
-  clearingCharge: number;
-  dmiCharge: number;
 }
 
 export interface Quotation {
@@ -30,7 +22,14 @@ export interface Quotation {
   email: string;
   makeModelId: string;
   vehicleModelId: string;
-  serviceCharge?: number;
+  cifValue: number;
+  lcAmount: number;
+  ttAmount: number;
+  taxAmount: number;
+  serviceCharge: number;
+  clearingCharge: number;
+  mileage: number;
+  dmiCharge: number;
   createdAt: string;
   status?: string;
 }
@@ -66,7 +65,7 @@ export interface Lead {
   email: string;
   phone: string;
   message: string;
-  status: 'New' | 'Contacted' | 'Converted' | 'Closed';
+  status: 'New' | 'Contacted' | 'Converted' | 'Closed' | 'Completed';
   created_at: string;
 }
 

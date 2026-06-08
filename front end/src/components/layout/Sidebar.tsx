@@ -4,17 +4,17 @@ import { cn } from '@/utils';
 import { useDataStore } from '@/store';
 
 const baseLinks = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/make-models', label: 'Make Models', icon: Tag },
-  { to: '/vehicle-models', label: 'Vehicle Models', icon: Car },
-  { to: '/quotations', label: 'Quotations', icon: FileText },
-  { to: '/invoices', label: 'Invoices', icon: Receipt },
-  { to: '/clearing-agents', label: 'Clearing Agents', icon: UserCheck },
-  { to: '/logistics', label: 'Logistics & Vault', icon: Ship },
-  { to: '/investors', label: 'Investors & Split', icon: Landmark },
-  { to: '/reports', label: 'Accounting & Reports', icon: BarChart3 },
-  { to: '/cashbook', label: 'Corporate Cashbook', icon: BookOpen },
-  { to: '/leads', label: 'CRM Leads', icon: Inbox },
+  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin/make-models', label: 'Make Models', icon: Tag },
+  { to: '/admin/vehicle-models', label: 'Vehicle Models', icon: Car },
+  { to: '/admin/quotations', label: 'Quotations', icon: FileText },
+  { to: '/admin/invoices', label: 'Invoices', icon: Receipt },
+  { to: '/admin/clearing-agents', label: 'Clearing Agents', icon: UserCheck },
+  // { to: '/admin/logistics', label: 'Logistics & Vault', icon: Ship }, // Temporarily locked
+  // { to: '/admin/investors', label: 'Investors & Split', icon: Landmark }, // Temporarily locked
+  // { to: '/admin/reports', label: 'Accounting & Reports', icon: BarChart3 }, // Temporarily locked
+  { to: '/admin/cashbook', label: 'Corporate Cashbook', icon: BookOpen },
+  { to: '/admin/leads', label: 'CRM Leads', icon: Inbox },
 ];
 
 interface Props { open: boolean; onClose: () => void; }
@@ -25,9 +25,9 @@ export default function Sidebar({ open, onClose }: Props) {
 
   let links = [...baseLinks];
   if (currentUser?.role === 'agent') {
-    links = baseLinks.filter((l) => l.to === '/clearing-agents');
+    links = baseLinks.filter((l) => l.to === '/admin/clearing-agents');
   } else if (currentUser?.role === 'admin') {
-    links.push({ to: '/users', label: 'User Priorities', icon: Users });
+    links.push({ to: '/admin/users', label: 'User Priorities', icon: Users });
   }
 
   const handleLogout = () => {
@@ -45,8 +45,8 @@ export default function Sidebar({ open, onClose }: Props) {
         open ? 'translate-x-0' : '-translate-x-full'
       )}>
         <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10 flex-shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-hero flex items-center justify-center shadow-lg">
-            <Gauge className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg p-1">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <h1 className="font-bold text-lg tracking-tight">D&N Automate</h1>

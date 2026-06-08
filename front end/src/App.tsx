@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
+import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import MakeModels from '@/pages/MakeModels';
 import VehicleModels from '@/pages/VehicleModels';
@@ -24,10 +25,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="login" element={<Login />} />
+        {/* Public Routes */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
 
         {/* Protected Routes */}
-        <Route element={<PrivateRoute />}>
+        <Route path="/admin" element={<PrivateRoute />}>
           <Route element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="make-models" element={<MakeModels />} />
@@ -43,6 +46,9 @@ export default function App() {
             <Route path="users" element={<Users />} />
           </Route>
         </Route>
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

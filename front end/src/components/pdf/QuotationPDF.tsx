@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, PDFViewer, pdf, Image, Svg, Path, Rect, Circle, Line, G, Polygon } from '@react-pdf/renderer';
 import { MakeModel, Quotation, VehicleModel } from '@/types';
-import { formatCurrency, formatDate, vehicleTotal } from '@/utils';
+import { formatCurrency, formatDate, quotationTotal } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
@@ -17,12 +17,12 @@ const LOGO_URL = '/logo.png';
 const s = StyleSheet.create({
   page: {
     position: 'relative',
-    fontSize: 10,
+    fontSize: 8.5,
     fontFamily: 'Helvetica',
     color: DARK_TEXT,
-    paddingTop: 100,
-    paddingBottom: 100,
-    paddingHorizontal: 40,
+    paddingTop: 65,
+    paddingBottom: 50,
+    paddingHorizontal: 35,
   },
   /* ── Header area ── */
   headerBar: {
@@ -30,15 +30,15 @@ const s = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 90,
+    height: 55,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 30,
-    paddingTop: 12,
+    paddingHorizontal: 25,
+    paddingTop: 8,
   },
   logoImage: {
-    width: 75,
-    height: 80,
+    width: 50,
+    height: 55,
     objectFit: 'contain',
   },
   /* ── Document title ── */
@@ -46,103 +46,108 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: 8,
+    marginTop: 4,
   },
   docTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: 'Helvetica-Bold',
     color: NAVY,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
   },
   docMetaBlock: {
     alignItems: 'flex-end',
   },
   docMeta: {
-    fontSize: 9,
+    fontSize: 7.5,
     color: GRAY_TEXT,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   docMetaValue: {
-    fontSize: 10,
+    fontSize: 8.5,
     fontFamily: 'Helvetica-Bold',
     color: DARK_TEXT,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   /* ── Divider ── */
   divider: {
-    height: 2,
+    height: 1.5,
     backgroundColor: NAVY,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   dividerThin: {
     height: 1,
     backgroundColor: BORDER_GRAY,
-    marginVertical: 10,
+    marginVertical: 6,
   },
   /* ── Section ── */
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 9,
     fontFamily: 'Helvetica-Bold',
     color: WHITE,
     backgroundColor: NAVY,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    marginTop: 14,
-    letterSpacing: 1,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    marginBottom: 4,
+    marginTop: 6,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   /* ── Two-column info ── */
   twoCol: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 4,
+    gap: 12,
+    marginBottom: 2,
   },
   col: {
     flex: 1,
-    padding: 8,
+    padding: 5,
     backgroundColor: LIGHT_BLUE,
-    borderRadius: 3,
+    borderRadius: 2,
+  },
+  singleCol: {
+    padding: 5,
+    backgroundColor: LIGHT_BLUE,
+    borderRadius: 2,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   label: {
-    width: 80,
+    width: 60,
     color: GRAY_TEXT,
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
   },
   value: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 8,
     color: DARK_TEXT,
   },
   /* ── Cost table ── */
   table: {
-    marginTop: 6,
+    marginTop: 4,
     borderWidth: 1,
     borderColor: BORDER_GRAY,
-    borderRadius: 3,
+    borderRadius: 2,
   },
   tHead: {
     flexDirection: 'row',
     backgroundColor: NAVY,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   tHeadCell: {
     color: WHITE,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 9,
+    fontSize: 8,
   },
   tRow: {
     flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 3.5,
+    paddingHorizontal: 8,
+    borderBottomWidth: 0.5,
     borderBottomColor: BORDER_GRAY,
   },
   tRowAlt: {
@@ -150,43 +155,43 @@ const s = StyleSheet.create({
   },
   tCellLabel: {
     flex: 2,
-    fontSize: 9,
+    fontSize: 8,
   },
   tCellValue: {
     flex: 1,
     textAlign: 'right',
-    fontSize: 9,
+    fontSize: 8,
   },
   totalRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     backgroundColor: NAVY,
   },
   totalLabel: {
     flex: 2,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 12,
+    fontSize: 10,
     color: WHITE,
   },
   totalValue: {
     flex: 1,
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 12,
+    fontSize: 10,
     color: WHITE,
   },
   /* ── Validity note ── */
   noteBox: {
-    marginTop: 16,
-    padding: 10,
+    marginTop: 8,
+    padding: 6,
     backgroundColor: LIGHT_BLUE,
-    borderRadius: 3,
+    borderRadius: 2,
     borderLeftWidth: 3,
     borderLeftColor: BLUE,
   },
   noteText: {
-    fontSize: 9,
+    fontSize: 8,
     color: GRAY_TEXT,
     fontStyle: 'italic',
   },
@@ -194,21 +199,21 @@ const s = StyleSheet.create({
   sigRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 30,
+    marginTop: 15,
   },
   sigBlock: {
     alignItems: 'center',
-    width: 180,
+    width: 140,
   },
   sigLine: {
-    width: 150,
-    height: 1,
+    width: 120,
+    height: 0.5,
     backgroundColor: DARK_TEXT,
-    marginTop: 40,
-    marginBottom: 4,
+    marginTop: 25,
+    marginBottom: 3,
   },
   sigLabel: {
-    fontSize: 9,
+    fontSize: 7.5,
     color: GRAY_TEXT,
   },
   /* ── Footer ── */
@@ -217,13 +222,13 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 55,
+    height: 45,
   },
   footerContent: {
     position: 'absolute',
-    bottom: 8,
-    left: 30,
-    right: 30,
+    bottom: 6,
+    left: 25,
+    right: 25,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -231,14 +236,14 @@ const s = StyleSheet.create({
   footerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   footerText: {
-    fontSize: 8,
+    fontSize: 7,
     color: GRAY_TEXT,
   },
   footerBold: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
     color: DARK_TEXT,
   },
@@ -251,8 +256,8 @@ const s = StyleSheet.create({
     opacity: 0.06,
   },
   watermarkImage: {
-    width: 280,
-    height: 300,
+    width: 240,
+    height: 260,
     objectFit: 'contain',
   },
 });
@@ -320,15 +325,15 @@ function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
 
 export function QuotationDoc({ quotation, vehicle, make }: Props) {
   const rows: [string, number][] = [
-    ['CIF Value', vehicle.cifValue],
-    ['LC Amount', vehicle.lcAmount],
-    ['TT Amount', vehicle.ttAmount],
-    ['Tax Amount', vehicle.taxAmount],
-    ['Service Charge', vehicle.serviceCharge],
-    ['Clearing Charge', vehicle.clearingCharge],
-    ['DMI Charge', vehicle.dmiCharge],
+    ['CIF Value', quotation.cifValue || 0],
+    ['LC Amount', quotation.lcAmount || 0],
+    ['TT Amount', quotation.ttAmount || 0],
+    ['Tax Amount', quotation.taxAmount || 0],
+    ['Service Charge', quotation.serviceCharge || 0],
+    ['Clearing Charge', quotation.clearingCharge || 0],
+    ['DMI Charge', quotation.dmiCharge || 0],
   ];
-  const total = vehicleTotal(vehicle);
+  const total = quotationTotal(quotation);
 
   return (
     <Document>
@@ -384,7 +389,7 @@ export function QuotationDoc({ quotation, vehicle, make }: Props) {
           <View style={s.col}>
             <View style={s.row}><Text style={s.label}>Grade:</Text><Text style={s.value}>{vehicle.grade}</Text></View>
             <View style={s.row}><Text style={s.label}>Year:</Text><Text style={s.value}>{String(vehicle.year)}</Text></View>
-            <View style={s.row}><Text style={s.label}>Mileage:</Text><Text style={s.value}>{vehicle.mileage.toLocaleString()} km</Text></View>
+            <View style={s.row}><Text style={s.label}>Mileage:</Text><Text style={s.value}>{(quotation.mileage || 0).toLocaleString()} km</Text></View>
           </View>
         </View>
 

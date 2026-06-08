@@ -3,12 +3,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit2, Trash2, Search } from 'lucide-react';
-import { useDataStore, toast, vehicleTotal } from '@/store';
+import { useDataStore, toast } from '@/store';
 import { VehicleModel } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { formatCurrency } from '@/utils';
 
 const schema = z.object({
   makeModelId: z.string().min(1, 'Required'),
@@ -17,18 +16,8 @@ const schema = z.object({
   color: z.string().min(1, 'Required'),
   grade: z.string().min(1, 'Required'),
   year: z.coerce.number().min(1980).max(new Date().getFullYear() + 1),
-  mileage: z.coerce.number().min(0),
-  cifValue: z.coerce.number().min(0),
-  lcAmount: z.coerce.number().min(0),
-  ttAmount: z.coerce.number().min(0),
-  taxAmount: z.coerce.number().min(0),
-  serviceCharge: z.coerce.number().min(0),
-  clearingCharge: z.coerce.number().min(0),
-  dmiCharge: z.coerce.number().min(0),
 });
 type FormData = z.infer<typeof schema>;
-
-const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
 
 export default function VehicleModels() {
   const { vehicleModels, makeModels, addVehicleModel, updateVehicleModel, deleteVehicleModel } = useDataStore();
@@ -41,7 +30,7 @@ export default function VehicleModels() {
 
   const openAdd = () => {
     setEditing(null);
-    reset({ makeModelId: makeModels[0]?.id || '', name: '', engineCapacity: '', color: '', grade: '', year: new Date().getFullYear(), mileage: 0, cifValue: 0, lcAmount: 0, ttAmount: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 });
+    reset({ makeModelId: makeModels[0]?.id || '', name: '', engineCapacity: '', color: '', grade: '', year: new Date().getFullYear() });
     setModalOpen(true);
   };
   const openEdit = (v: VehicleModel) => { setEditing(v); reset(v); setModalOpen(true); };
@@ -69,9 +58,9 @@ export default function VehicleModels() {
 
       <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No vehicle models" /> : (
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="table">
-              <thead><tr><th>Make</th><th>Model</th><th>Year</th><th>Engine</th><th>Color</th><th>Grade</th><th>CIF</th><th>Total</th><th className="text-right">Actions</th></tr></thead>
+          <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200"><tr><th>Make</th><th>Model</th><th>Year</th><th>Engine</th><th>Color</th><th>Grade</th><th className="text-right">Actions</th></tr></thead>
               <tbody>
                 {filtered.map((v) => {
                   const make = makeModels.find((m) => m.id === v.makeModelId);
@@ -83,8 +72,6 @@ export default function VehicleModels() {
                       <td className="text-slate-600">{v.engineCapacity}</td>
                       <td className="text-slate-600">{v.color}</td>
                       <td className="text-slate-600">{v.grade}</td>
-                      <td>{formatCurrency(v.cifValue)}</td>
-                      <td className="font-semibold text-brand-700">{formatCurrency(vehicleTotal(v))}</td>
                       <td>
                         <div className="flex justify-end gap-1">
                           <button onClick={() => openEdit(v)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-600"><Edit2 className="w-4 h-4" /></button>
@@ -100,7 +87,7 @@ export default function VehicleModels() {
         )}
       </div>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Vehicle Model' : 'Add Vehicle Model'} size="xl">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Vehicle Model' : 'Add Vehicle Model'} size="lg">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -119,15 +106,6 @@ export default function VehicleModels() {
             <div><label className="label">Color</label><input {...register('color')} className="input" /></div>
             <div><label className="label">Grade</label><input {...register('grade')} className="input" /></div>
             <div><label className="label">Year</label><input type="number" {...register('year')} className="input" /></div>
-            <div><label className="label">Mileage (km)</label><input type="number" {...register('mileage')} className="input" /></div>
-            <div /> {/* spacer */}
-            {numericFields.map((f) => (
-              <div key={f}>
-                <label className="label">{f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
-                <input type="number" step="0.01" {...register(f)} className="input" />
-                {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
-              </div>
-            ))}
           </div>
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>

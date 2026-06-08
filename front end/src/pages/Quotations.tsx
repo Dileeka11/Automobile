@@ -4,12 +4,12 @@ import { useLocation } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit2, Trash2, Search, Eye, Printer, FileText } from 'lucide-react';
-import { useDataStore, toast } from '@/store';
+import { useDataStore, toast, quotationTotal } from '@/store';
 import { Quotation } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { formatDate } from '@/utils';
+import { formatDate, formatCurrency } from '@/utils';
 import { QuotationPDFViewer, downloadQuotationPDF } from '@/components/pdf/QuotationPDF';
 
 const schema = z.object({
@@ -20,8 +20,20 @@ const schema = z.object({
   email: z.string().email('Invalid email'),
   makeModelId: z.string().min(1, 'Required'),
   vehicleModelId: z.string().min(1, 'Required'),
+  mileage: z.coerce.number().min(0),
+  cifValue: z.coerce.number().min(0),
+  lcAmount: z.coerce.number().min(0),
+  ttAmount: z.coerce.number().min(0),
+  taxAmount: z.coerce.number().min(0),
+  serviceCharge: z.coerce.number().min(0),
+  clearingCharge: z.coerce.number().min(0),
+  dmiCharge: z.coerce.number().min(0),
 });
 type FormData = z.infer<typeof schema>;
+
+const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
+
+const defaultFinancials = { mileage: 0, cifValue: 0, lcAmount: 0, ttAmount: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 };
 
 export default function Quotations() {
   const { quotations, makeModels, vehicleModels, addQuotation, updateQuotation, deleteQuotation } = useDataStore();
@@ -36,8 +48,20 @@ export default function Quotations() {
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
   const selectedMake = useWatch({ control, name: 'makeModelId' });
+  const selectedVehicleId = useWatch({ control, name: 'vehicleModelId' });
 
   const filteredVehicles = useMemo(() => vehicleModels.filter((v) => v.makeModelId === selectedMake), [vehicleModels, selectedMake]);
+  const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedVehicleId), [vehicleModels, selectedVehicleId]);
+
+  // Watch all financial fields for live total
+  const watchedCif = useWatch({ control, name: 'cifValue' }) || 0;
+  const watchedLc = useWatch({ control, name: 'lcAmount' }) || 0;
+  const watchedTt = useWatch({ control, name: 'ttAmount' }) || 0;
+  const watchedTax = useWatch({ control, name: 'taxAmount' }) || 0;
+  const watchedService = useWatch({ control, name: 'serviceCharge' }) || 0;
+  const watchedClearing = useWatch({ control, name: 'clearingCharge' }) || 0;
+  const watchedDmi = useWatch({ control, name: 'dmiCharge' }) || 0;
+  const liveTotal = Number(watchedCif) + Number(watchedLc) + Number(watchedTt) + Number(watchedTax) + Number(watchedService) + Number(watchedClearing) + Number(watchedDmi);
 
   // Check for CRM prefill
   useEffect(() => {
@@ -52,7 +76,8 @@ export default function Quotations() {
         mobileNo: prefill.mobileNo || '',
         email: prefill.email || '',
         makeModelId: firstMake,
-        vehicleModelId: firstVeh
+        vehicleModelId: firstVeh,
+        ...defaultFinancials
       });
       setModalOpen(true);
       // Clear location state
@@ -64,10 +89,30 @@ export default function Quotations() {
     setEditing(null);
     const firstMake = makeModels[0]?.id || '';
     const firstVeh = vehicleModels.find((v) => v.makeModelId === firstMake)?.id || '';
-    reset({ name: '', address: '', nic: '', mobileNo: '', email: '', makeModelId: firstMake, vehicleModelId: firstVeh });
+    reset({ name: '', address: '', nic: '', mobileNo: '', email: '', makeModelId: firstMake, vehicleModelId: firstVeh, ...defaultFinancials });
     setModalOpen(true);
   };
-  const openEdit = (q: Quotation) => { setEditing(q); reset(q); setModalOpen(true); };
+  const openEdit = (q: Quotation) => {
+    setEditing(q);
+    reset({
+      name: q.name,
+      address: q.address,
+      nic: q.nic,
+      mobileNo: q.mobileNo,
+      email: q.email,
+      makeModelId: q.makeModelId,
+      vehicleModelId: q.vehicleModelId,
+      mileage: q.mileage || 0,
+      cifValue: q.cifValue || 0,
+      lcAmount: q.lcAmount || 0,
+      ttAmount: q.ttAmount || 0,
+      taxAmount: q.taxAmount || 0,
+      serviceCharge: q.serviceCharge || 0,
+      clearingCharge: q.clearingCharge || 0,
+      dmiCharge: q.dmiCharge || 0,
+    });
+    setModalOpen(true);
+  };
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -106,9 +151,9 @@ export default function Quotations() {
 
       <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No quotations" /> : (
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="table">
-              <thead><tr><th>ID</th><th>Customer</th><th>NIC</th><th>Mobile</th><th>Vehicle</th><th>Date</th><th className="text-right">Actions</th></tr></thead>
+          <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200"><tr><th>ID</th><th>Customer</th><th>NIC</th><th>Mobile</th><th>Vehicle</th><th>Total</th><th>Date</th><th className="text-right">Actions</th></tr></thead>
               <tbody>
                 {filtered.map((q) => {
                   const v = vehicleModels.find((x) => x.id === q.vehicleModelId);
@@ -120,6 +165,7 @@ export default function Quotations() {
                       <td className="text-slate-600">{q.nic}</td>
                       <td className="text-slate-600">{q.mobileNo}</td>
                       <td><span className="text-slate-700">{m?.name} {v?.name}</span></td>
+                      <td className="font-semibold text-brand-700">{formatCurrency(quotationTotal(q))}</td>
                       <td className="text-slate-500">{formatDate(q.createdAt)}</td>
                       <td>
                         <div className="flex justify-end gap-1">
@@ -140,6 +186,7 @@ export default function Quotations() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Quotation' : 'New Quotation'} size="xl">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Customer Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2"><label className="label">Full Name</label><input {...register('name')} placeholder="Enter customer full name (e.g. John Doe)" className="input" />{errors.name && <p className="text-xs text-red-600 mt-1">{errors.name.message}</p>}</div>
             <div className="md:col-span-2"><label className="label">Address</label><input {...register('address')} placeholder="Enter customer residential or business address" className="input" />{errors.address && <p className="text-xs text-red-600 mt-1">{errors.address.message}</p>}</div>
@@ -156,11 +203,58 @@ export default function Quotations() {
               <label className="label">Vehicle Model</label>
               <select {...register('vehicleModelId')} className="input">
                 {filteredVehicles.length === 0 && <option value="">No vehicles for this make</option>}
-                {filteredVehicles.map((v) => <option key={v.id} value={v.id}>{v.name} — {v.year} {v.color}</option>)}
+                {filteredVehicles.map((v) => <option key={v.id} value={v.id}>{v.name} — {v.year} {v.color} | {v.grade} | {v.engineCapacity}</option>)}
               </select>
               {errors.vehicleModelId && <p className="text-xs text-red-600 mt-1">{errors.vehicleModelId.message}</p>}
             </div>
           </div>
+
+          {/* Vehicle Model Details Card */}
+          {selectedVehicle && (
+            <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/80 p-4">
+              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider mb-3">Selected Vehicle Details</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wide">Model</p>
+                  <p className="text-sm font-semibold text-slate-800">{selectedVehicle.name}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wide">Grade</p>
+                  <p className="text-sm font-semibold text-slate-800">{selectedVehicle.grade || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wide">Engine Capacity</p>
+                  <p className="text-sm font-semibold text-slate-800">{selectedVehicle.engineCapacity || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wide">Year / Color</p>
+                  <p className="text-sm font-semibold text-slate-800">{selectedVehicle.year} — {selectedVehicle.color}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Financial Details */}
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-bold text-slate-800">Cost Breakdown</h4>
+              <div className="bg-brand-50 border border-brand-200 rounded-lg px-3 py-1.5">
+                <span className="text-xs text-brand-600 font-medium mr-1">Total:</span>
+                <span className="text-sm font-bold text-brand-700">{formatCurrency(liveTotal)}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label className="label">Mileage (km)</label><input type="number" {...register('mileage')} className="input" /></div>
+              {numericFields.map((f) => (
+                <div key={f}>
+                  <label className="label">{f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
+                  <input type="number" step="0.01" {...register(f)} className="input" />
+                  {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2 border-t">
             <button type="button" onClick={() => setModalOpen(false)} className="btn-secondary">Cancel</button>
             <button type="submit" className="btn-primary"><FileText className="w-4 h-4" /> {editing ? 'Update' : 'Create'}</button>

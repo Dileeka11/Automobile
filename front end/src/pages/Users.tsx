@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
 import { Plus, Edit2, Trash2, Key, Shield, UserCheck, Loader2 } from 'lucide-react';
@@ -98,7 +99,17 @@ export default function Users() {
   };
 
   const handleDelete = async (u: User) => {
-    if (window.confirm(`Are you sure you want to delete user ${u.name}?`)) {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `You are about to delete user ${u.name}. This cannot be undone!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteUser(u.id);
         toast.success('User deleted successfully');
@@ -121,9 +132,9 @@ export default function Users() {
       </div>
 
       <div className="card flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="overflow-auto flex-1 min-h-0">
-          <table className="table">
-            <thead>
+        <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+          <table className="table w-full relative">
+            <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
               <tr>
                 <th>Name</th>
                 <th>Username</th>

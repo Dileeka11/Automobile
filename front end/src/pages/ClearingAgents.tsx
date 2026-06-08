@@ -49,9 +49,9 @@ export default function ClearingAgents() {
 
       <div className="table-wrap flex-1 min-h-0 flex flex-col">
         {filtered.length === 0 ? <EmptyState title="No invoices available" /> : (
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="table">
-              <thead>
+          <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                 <tr>
                   <th>Invoice ID</th>
                   <th>Customer Name</th>

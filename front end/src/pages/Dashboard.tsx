@@ -60,8 +60,8 @@ export default function Dashboard() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [quotations, makeModels]);
 
-  const recentQuotations = [...quotations].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 5);
-  const recentInvoices = [...invoices].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 5);
+  const recentQuotations = [...quotations].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 15);
+  const recentInvoices = [...invoices].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 15);
 
   return (
     <div className="space-y-6">
@@ -107,11 +107,11 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-5">
-          <h3 className="font-semibold text-slate-900 mb-4">Recent Quotations</h3>
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead><tr><th>ID</th><th>Customer</th><th>Vehicle</th><th>Date</th></tr></thead>
+        <div className="card p-5 h-[320px] flex flex-col">
+          <h3 className="font-semibold text-slate-900 mb-4 flex-shrink-0">Recent Quotations</h3>
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 pr-1">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-white z-10 shadow-sm border-b border-slate-200"><tr><th>ID</th><th>Customer</th><th>Vehicle</th><th>Date</th></tr></thead>
               <tbody>
                 {recentQuotations.map((q) => {
                   const v = vehicleModels.find((vm) => vm.id === q.vehicleModelId);
@@ -129,11 +129,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card p-5">
-          <h3 className="font-semibold text-slate-900 mb-4">Recent Invoices</h3>
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead><tr><th>ID</th><th>Balance</th><th>Status</th><th>Date</th></tr></thead>
+        <div className="card p-5 h-[320px] flex flex-col">
+          <h3 className="font-semibold text-slate-900 mb-4 flex-shrink-0">Recent Invoices</h3>
+          <div className="overflow-x-auto overflow-y-auto flex-1 min-h-0 pr-1">
+            <table className="table w-full relative">
+              <thead className="sticky top-0 bg-white z-10 shadow-sm border-b border-slate-200"><tr><th>ID</th><th>Balance</th><th>Status</th><th>Date</th></tr></thead>
               <tbody>
                 {recentInvoices.map((i) => (
                   <tr key={i.id}>
