@@ -332,7 +332,7 @@ export default function Logistics() {
                       <div className="text-slate-400 text-[10px]">Uploaded at: {doc.uploaded_at}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <a href={`http://localhost/Automobile/${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">Download</a>
+                      <a href={`http://automobile.sourcecode.lk/${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="text-brand-600 hover:underline">Download</a>
                       <button type="button" onClick={() => handleDeleteDoc(doc.id)} className="text-red-500 hover:text-red-700">
                         <Trash2 className="w-4 h-4" />
                       </button>
