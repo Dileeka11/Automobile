@@ -376,70 +376,72 @@ export default function Landing() {
       </section>
 
       {/* --- About Us Premium Section --- */}
-      <section 
-        id="about" 
-        ref={el => sectionRefs.current[4] = el}
-        className="pt-40 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 opacity-0 translate-y-10 transition-all duration-700"
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="relative">
-            {/* Glowing Backdrop */}
-            <div className="absolute inset-0 bg-blue-600/20 rounded-3xl blur-2xl transform -rotate-3" />
-            <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl group">
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent z-10 pointer-events-none" />
-              <img 
-                src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=1200" 
-                alt="Luxury Car Dealership Interior" 
-                className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" 
-              />
-              <div className="absolute bottom-6 left-6 z-20 flex items-center gap-4">
-                <div className="glass-neon px-6 py-4 rounded-2xl border border-white/20 backdrop-blur-md">
-                  <span className="block text-3xl font-black text-white">10+</span>
-                  <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-300">Years of Trust</span>
+      <div className="bg-slate-50 w-full relative z-10 border-t border-slate-200">
+        <section 
+          id="about" 
+          ref={el => sectionRefs.current[4] = el}
+          className="pt-24 pb-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative opacity-0 translate-y-10 transition-all duration-700"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="relative">
+              {/* Glowing Backdrop */}
+              <div className="absolute inset-0 bg-blue-500/10 rounded-3xl blur-2xl transform -rotate-3" />
+              <div className="relative rounded-3xl overflow-hidden border border-slate-200 shadow-2xl group bg-white">
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent z-10 pointer-events-none" />
+                <img 
+                  src="https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&q=80&w=1200" 
+                  alt="Luxury Car Dealership Interior" 
+                  className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" 
+                />
+                <div className="absolute bottom-6 left-6 z-20 flex items-center gap-4">
+                  <div className="bg-white/90 px-6 py-4 rounded-2xl border border-white/50 backdrop-blur-md shadow-xl">
+                    <span className="block text-3xl font-black text-slate-900">10+</span>
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-600">Years of Trust</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                <div className="w-8 h-px bg-red-500" /> About Us
-              </h2>
-              <h3 className="text-4xl sm:text-5xl font-black text-white leading-[1.1]">
-                Elevating the <br /> <span className="text-blue-500">Automotive Experience</span>
-              </h3>
-            </div>
-            <p className="text-slate-400 leading-relaxed">
-              D&N Automart (PVT) LTD is a premier luxury vehicle brokerage specializing in importing pristine vehicles directly from Japanese and European auctions. We bring the luxury showroom experience to you with complete transparency.
-            </p>
-            <p className="text-slate-400 leading-relaxed">
-              Our commitment goes beyond sales. We provide end-to-end logistics, handling everything from auction bidding to harbor clearance, ensuring your dream vehicle arrives in perfect condition without hidden broker markups.
-            </p>
             
-            <div className="pt-4 flex flex-col sm:flex-row gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Star className="w-4 h-4 text-blue-400" />
-                </div>
-                <div>
-                  <h5 className="text-sm font-bold text-white">Premium Quality</h5>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">Verified Imports</p>
-                </div>
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <div className="w-8 h-px bg-red-600" /> About Us
+                </h2>
+                <h3 className="text-4xl sm:text-5xl font-black text-slate-900 leading-[1.1]">
+                  Elevating the <br /> <span className="text-blue-600">Automotive Experience</span>
+                </h3>
               </div>
-              <div className="flex items-center gap-3 sm:ml-8">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                  <ShieldCheck className="w-4 h-4 text-red-400" />
+              <p className="text-slate-600 leading-relaxed">
+                D&N Automart (PVT) LTD is a premier luxury vehicle brokerage specializing in importing pristine vehicles directly from Japanese and European auctions. We bring the luxury showroom experience to you with complete transparency.
+              </p>
+              <p className="text-slate-600 leading-relaxed">
+                Our commitment goes beyond sales. We provide end-to-end logistics, handling everything from auction bidding to harbor clearance, ensuring your dream vehicle arrives in perfect condition without hidden broker markups.
+              </p>
+              
+              <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+                    <Star className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-900">Premium Quality</h5>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">Verified Imports</p>
+                  </div>
                 </div>
-                <div>
-                  <h5 className="text-sm font-bold text-white">Trusted Network</h5>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest">100% Guaranteed</p>
+                <div className="flex items-center gap-3 sm:ml-8">
+                  <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center border border-red-200">
+                    <ShieldCheck className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <h5 className="text-sm font-bold text-slate-900">Trusted Network</h5>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">100% Guaranteed</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* --- Live Inventory Section --- */}
 
@@ -492,62 +494,65 @@ export default function Landing() {
       </section>
 
       {/* --- Why Choose Us Section --- */}
-      <section 
-        id="trust" 
-        ref={el => sectionRefs.current[2] = el}
-        className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative opacity-0 translate-y-10 transition-all duration-700"
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-xs font-bold text-blue-500 uppercase tracking-widest mb-2">Why Choose Us</h2>
-              <h3 className="text-4xl sm:text-5xl font-black text-white">Unrivaled Import Transparency</h3>
-              <div className="w-16 h-1 bg-gradient-to-r from-blue-600 to-red-600 mt-4 rounded-full" />
-            </div>
-            <p className="text-slate-400 leading-relaxed text-sm">
-              D&N Automart (PVT) LTD is a premier registered vehicle brokerage. By combining state-of-the-art tech platforms with direct clearing relations, we eliminate brokers' markup, ensuring you pay the actual auction value + tax duty.
-            </p>
-            
-            <div className="space-y-6">
-              <div className="flex gap-4 p-4 rounded-xl hover:bg-white/5 transition border border-transparent hover:border-white/5">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <ShieldCheck className="w-6 h-6 text-blue-400" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-white">Authentic Auction Sheets</h4>
-                  <p className="text-xs text-slate-400 mt-1">We verify grading reports, ensuring mileage and mechanical components match auction files exactly.</p>
-                </div>
-              </div>
-              
-              <div className="flex gap-4 p-4 rounded-xl hover:bg-white/5 transition border border-transparent hover:border-white/5">
-                <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-6 h-6 text-red-400" />
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-white">Full Duty Guarantee</h4>
-                  <p className="text-xs text-slate-400 mt-1">We calculate custom tax values prior to bidding, ensuring there are zero surprise clearance costs.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex justify-center">
-            <div className="glass-neon p-12 rounded-3xl border border-white/5 shadow-2xl relative max-w-[420px] w-full text-center space-y-6">
-              <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/10 mx-auto p-2 border border-white/10">
-                <img src="/logo.png" alt="D & N Brand Logo" className="w-full h-full object-contain" />
-              </div>
+      <div className="bg-slate-50 w-full relative z-10 border-y border-slate-200">
+        <section 
+          id="trust" 
+          ref={el => sectionRefs.current[2] = el}
+          className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative opacity-0 translate-y-10 transition-all duration-700"
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
               <div>
-                <h4 className="text-xl font-bold text-white">D & N AUTOMART</h4>
-                <p className="text-xs text-slate-500 mt-1">Registered Importer (PVT) LTD</p>
+                <h2 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2">Why Choose Us</h2>
+                <h3 className="text-4xl sm:text-5xl font-black text-slate-900">Unrivaled Import Transparency</h3>
+                <div className="w-16 h-1 bg-gradient-to-r from-blue-600 to-red-600 mt-4 rounded-full" />
               </div>
-              <div className="flex justify-center gap-1 text-amber-400">
-                {[1,2,3,4,5].map(x => <Star key={x} className="w-4 h-4 fill-current" />)}
+              <p className="text-slate-600 leading-relaxed text-sm">
+                D&N Automart (PVT) LTD is a premier registered vehicle brokerage. By combining state-of-the-art tech platforms with direct clearing relations, we eliminate brokers' markup, ensuring you pay the actual auction value + tax duty.
+              </p>
+              
+              <div className="space-y-6">
+                <div className="flex gap-4 p-4 rounded-xl hover:bg-white transition border border-transparent hover:border-slate-200 hover:shadow-lg">
+                  <div className="w-12 h-12 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center flex-shrink-0">
+                    <ShieldCheck className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900">Authentic Auction Sheets</h4>
+                    <p className="text-xs text-slate-500 mt-1">We verify grading reports, ensuring mileage and mechanical components match auction files exactly.</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 p-4 rounded-xl hover:bg-white transition border border-transparent hover:border-slate-200 hover:shadow-lg">
+                  <div className="w-12 h-12 rounded-xl bg-red-100 border border-red-200 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900">Full Duty Guarantee</h4>
+                    <p className="text-xs text-slate-500 mt-1">We calculate custom tax values prior to bidding, ensuring there are zero surprise clearance costs.</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-slate-400 italic">"Highly professional service. Cleared my vehicle on time and handled all tax documents perfectly."</p>
+            </div>
+            
+            <div className="flex justify-center">
+              <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-2xl relative max-w-[420px] w-full text-center space-y-6">
+                <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-transparent rounded-3xl pointer-events-none" />
+                <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/10 mx-auto p-2 border border-slate-100 relative z-10">
+                  <img src="/logo.png" alt="D & N Brand Logo" className="w-full h-full object-contain" />
+                </div>
+                <div className="relative z-10">
+                  <h4 className="text-xl font-bold text-slate-900">D & N AUTOMART</h4>
+                  <p className="text-xs text-slate-500 mt-1">Registered Importer (PVT) LTD</p>
+                </div>
+                <div className="flex justify-center gap-1 text-amber-400 relative z-10">
+                  {[1,2,3,4,5].map(x => <Star key={x} className="w-4 h-4 fill-current" />)}
+                </div>
+                <p className="text-xs text-slate-600 italic relative z-10">"Highly professional service. Cleared my vehicle on time and handled all tax documents perfectly."</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* --- Interactive Google Map & Contact Section --- */}
       <section 
