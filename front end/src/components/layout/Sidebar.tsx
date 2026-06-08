@@ -10,9 +10,9 @@ const baseLinks = [
   { to: '/admin/quotations', label: 'Quotations', icon: FileText },
   { to: '/admin/invoices', label: 'Invoices', icon: Receipt },
   { to: '/admin/clearing-agents', label: 'Clearing Agents', icon: UserCheck },
-  // { to: '/admin/logistics', label: 'Logistics & Vault', icon: Ship }, // Temporarily locked
-  // { to: '/admin/investors', label: 'Investors & Split', icon: Landmark }, // Temporarily locked
-  // { to: '/admin/reports', label: 'Accounting & Reports', icon: BarChart3 }, // Temporarily locked
+  { to: '/admin/logistics', label: 'Logistics & Vault', icon: Ship },
+  { to: '/admin/investors', label: 'Investors & Split', icon: Landmark },
+  { to: '/admin/reports', label: 'Accounting & Reports', icon: BarChart3 },
   { to: '/admin/cashbook', label: 'Corporate Cashbook', icon: BookOpen },
   { to: '/admin/leads', label: 'CRM Leads', icon: Inbox },
 ];
