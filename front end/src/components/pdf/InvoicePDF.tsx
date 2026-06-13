@@ -535,7 +535,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
   const rows: [string, number][] = [
     ['CIF Value', quotation.cifValue || 0],
     ['LC Amount', quotation.lcAmount || 0],
-    ['TT Amount', invoice.ttAmount],
+    ['TT Amount', quotation.ttAmount || 0],
     ['Tax Amount', quotation.taxAmount || 0],
     ['Service Charge', quotation.serviceCharge || 0],
     ['Clearing Charge', quotation.clearingCharge || 0],
@@ -680,7 +680,9 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
           <View style={[s.milestoneItem, invoice.isLcComplete ? s.milestoneComplete : s.milestonePending]}>
             <CheckMark complete={!!invoice.isLcComplete} />
             <View>
-              <Text style={[s.milestoneLabel, { color: invoice.isLcComplete ? GREEN : AMBER }]}>LC Payment</Text>
+              <Text style={[s.milestoneLabel, { color: invoice.isLcComplete ? GREEN : AMBER }]}>
+                LC Payment {invoice.lcNumber ? `(No: ${invoice.lcNumber}${invoice.lcOpenType ? `, Type: ${invoice.lcOpenType === 'company' ? 'Company' : 'Personal'}` : ''})` : ''}
+              </Text>
               <Text style={[s.milestoneStatus, { color: invoice.isLcComplete ? GREEN : AMBER }]}>
                 {invoice.isLcComplete ? 'Completed' : 'Pending'}
               </Text>

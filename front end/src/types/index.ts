@@ -44,6 +44,8 @@ export interface Invoice {
   balance: number;
   status: InvoiceStatus;
   isLcComplete?: boolean;
+  lcNumber?: string | null;
+  lcOpenType?: 'company' | 'personal' | null;
   isTtComplete?: boolean;
   lcCopyPath?: string | null;
   inspectionCertificatePath?: string | null;
@@ -134,5 +136,14 @@ export interface CashbookExpense {
   amount: number;
   description: string;
   dateIncurred: string;
+  createdAt?: string;
+}
+
+export interface InvoicePayment {
+  id: number;
+  invoiceId: string;
+  amount: number;
+  paymentDate: string;
+  notes?: string | null;
   createdAt?: string;
 }

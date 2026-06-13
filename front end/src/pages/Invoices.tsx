@@ -1,16 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo } from 'lucide-react';
 import { useDataStore, toast, quotationTotal } from '@/store';
-import { Invoice } from '@/types';
+import { Invoice, InvoicePayment } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import StatusBadge from '@/components/ui/Badge';
 import { formatCurrency, formatDate } from '@/utils';
 import { InvoicePDFViewer, downloadInvoicePDF } from '@/components/pdf/InvoicePDF';
+import { ReceiptPDFViewer, downloadReceiptPDF } from '@/components/pdf/ReceiptPDF';
 
 const schema = z.object({
   quotationId: z.string().min(1, 'Select a quotation'),
@@ -18,6 +19,8 @@ const schema = z.object({
   advanceAmount: z.coerce.number().min(0),
   status: z.enum(['pending', 'paid']),
   isLcComplete: z.boolean().default(false),
+  lcNumber: z.string().optional().nullable(),
+  lcOpenType: z.enum(['company', 'personal', '']).optional().nullable(),
   isTtComplete: z.boolean().default(false),
   etdDate: z.string().optional().nullable(),
   arrivalDate: z.string().optional().nullable(),
@@ -25,7 +28,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function Invoices() {
-  const { invoices, quotations, vehicleModels, makeModels, addInvoice, updateInvoice, deleteInvoice } = useDataStore();
+  const { invoices, quotations, vehicleModels, makeModels, addInvoice, updateInvoice, deleteInvoice, fetchData } = useDataStore();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [toDelete, setToDelete] = useState<Invoice | null>(null);
@@ -39,12 +42,18 @@ export default function Invoices() {
   const [pendingDeleteLcCopy, setPendingDeleteLcCopy] = useState(false);
   const [pendingDeleteInspectionCertificate, setPendingDeleteInspectionCertificate] = useState(false);
   const [pendingDeleteYardPictureIds, setPendingDeleteYardPictureIds] = useState<number[]>([]);
+
+  const [payments, setPayments] = useState<InvoicePayment[]>([]);
+  const [newPaymentAmount, setNewPaymentAmount] = useState('');
+  const [newPaymentDate, setNewPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newPaymentNotes, setNewPaymentNotes] = useState('');
+  const [viewingReceipt, setViewingReceipt] = useState<InvoicePayment | null>(null);
   
   const [includeAttachmentsInView, setIncludeAttachmentsInView] = useState(true);
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false, etdDate: '', arrivalDate: '' },
+    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', isTtComplete: false, etdDate: '', arrivalDate: '' },
   });
 
   const selectedQId = useWatch({ control, name: 'quotationId' });
@@ -63,11 +72,20 @@ export default function Invoices() {
     if (!selectedQuotation) return 0;
     const lcVal = selectedQuotation.lcAmount || 0;
     const ttVal = selectedQuotation.ttAmount || 0;
+    
+    // Sum of recorded payments
+    const paymentsSum = payments.reduce((sum, p) => sum + p.amount, 0);
+    
     let deduction = 0;
     if (isLcChecked) deduction += lcVal;
-    if (isTtChecked) deduction += ttVal;
+    
+    // If TT completed, deduct remaining TT amount after paymentsSum; else deduct 0 (since payments are inside advanceAmount)
+    if (isTtChecked) {
+      deduction += Math.max(0, ttVal - paymentsSum);
+    }
+    
     return Math.max(0, total - Number(advance || 0) - deduction);
-  }, [selectedQuotation, total, advance, isLcChecked, isTtChecked]);
+  }, [selectedQuotation, total, advance, isLcChecked, isTtChecked, payments]);
 
   // Reminders calculation (>= 5 days since creation)
   const reminders = useMemo(() => {
@@ -96,15 +114,97 @@ export default function Invoices() {
     return list;
   }, [invoices]);
 
+  const fetchPayments = async (invoiceId: string) => {
+    try {
+      const resp = await fetch(`/backend/api/invoice_payments.php?invoiceId=${invoiceId}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setPayments(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInvoice) return;
+    const amount = parseFloat(newPaymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    try {
+      const resp = await fetch('/backend/api/invoice_payments.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: editingInvoice.id,
+          amount,
+          paymentDate: newPaymentDate,
+          notes: newPaymentNotes
+        })
+      });
+      if (resp.ok) {
+        const newPayment = await resp.json();
+        toast.success('Payment recorded successfully');
+        setNewPaymentAmount('');
+        setNewPaymentNotes('');
+        fetchPayments(editingInvoice.id);
+        await fetchData(); // Refresh invoices list in data store
+        
+        // Automatically open the receipt modal for the new installment
+        setViewingReceipt(newPayment);
+      } else {
+        const errData = await resp.json();
+        toast.error(errData.error || 'Failed to record payment');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error occurred');
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: number) => {
+    if (!editingInvoice) return;
+    if (!confirm('Are you sure you want to delete this payment installment?')) return;
+    try {
+      const resp = await fetch(`/backend/api/invoice_payments.php?id=${paymentId}`, {
+        method: 'DELETE'
+      });
+      if (resp.ok) {
+        toast.success('Payment deleted successfully');
+        fetchPayments(editingInvoice.id);
+        await fetchData(); // Refresh invoices list in data store
+      } else {
+        toast.error('Failed to delete payment');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Network error occurred');
+    }
+  };
+
+  // Keep editingInvoice reference updated when store fetches new list (balance, status, ttAmount changes)
+  useEffect(() => {
+    if (editingInvoice) {
+      const updated = invoices.find((inv) => inv.id === editingInvoice.id);
+      if (updated) {
+        setEditingInvoice(updated);
+      }
+    }
+  }, [invoices]);
+
   const openAdd = () => {
     setEditingInvoice(null);
-    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, isTtComplete: false, etdDate: '', arrivalDate: '' });
+    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', isTtComplete: false, etdDate: '', arrivalDate: '' });
     setLcCopyFile(null);
     setInspectionCertificateFile(null);
     setYardPicturesFiles([]);
     setPendingDeleteLcCopy(false);
     setPendingDeleteInspectionCertificate(false);
     setPendingDeleteYardPictureIds([]);
+    setPayments([]); // Clear payments for new invoice
     setModalOpen(true);
   };
 
@@ -116,6 +216,8 @@ export default function Invoices() {
       advanceAmount: i.advanceAmount,
       status: i.status,
       isLcComplete: !!i.isLcComplete,
+      lcNumber: i.lcNumber || '',
+      lcOpenType: i.lcOpenType || '',
       isTtComplete: !!i.isTtComplete,
       etdDate: i.etdDate || '',
       arrivalDate: i.arrivalDate || '',
@@ -126,6 +228,10 @@ export default function Invoices() {
     setPendingDeleteLcCopy(false);
     setPendingDeleteInspectionCertificate(false);
     setPendingDeleteYardPictureIds([]);
+    
+    // Fetch payments for this invoice
+    fetchPayments(i.id);
+    
     setModalOpen(true);
   };
 
@@ -155,9 +261,13 @@ export default function Invoices() {
     
     let formDeduction = 0;
     if (data.isLcComplete) formDeduction += lcAmountVal;
-    if (data.isTtComplete) formDeduction += ttAmountVal;
     
-    const balanceVal = Math.max(0, quotationTotal(selectedQuotation) - data.advanceAmount - formDeduction);
+    if (data.isTtComplete) {
+      const paymentsSum = payments.reduce((sum, p) => sum + p.amount, 0);
+      formDeduction += Math.max(0, ttAmountVal - paymentsSum);
+    }
+    
+    const balanceVal = Math.max(0, quotationTotal(selectedQuotation) - Number(data.advanceAmount || 0) - formDeduction);
 
     try {
       if (editingInvoice) {
@@ -168,6 +278,8 @@ export default function Invoices() {
         formData.append('balance', String(balanceVal));
         formData.append('status', data.status);
         formData.append('isLcComplete', String(!!data.isLcComplete));
+        formData.append('lcNumber', data.lcNumber || '');
+        formData.append('lcOpenType', data.lcOpenType || '');
         formData.append('isTtComplete', String(!!data.isTtComplete));
         formData.append('etdDate', data.etdDate || '');
         formData.append('arrivalDate', data.arrivalDate || '');
@@ -204,6 +316,8 @@ export default function Invoices() {
           balance: balanceVal,
           status: data.status,
           isLcComplete: !!data.isLcComplete,
+          lcNumber: data.lcNumber,
+          lcOpenType: data.lcOpenType === '' ? null : data.lcOpenType,
           isTtComplete: !!data.isTtComplete,
           etdDate: data.etdDate,
           arrivalDate: data.arrivalDate,
@@ -245,7 +359,9 @@ export default function Invoices() {
 
     let deduction = 0;
     if (newStatus) deduction += lcVal;
-    if (i.isTtComplete) deduction += ttVal;
+    if (i.isTtComplete) {
+      deduction += Math.max(0, ttVal - i.ttAmount);
+    }
 
     const newBalance = Math.max(0, totalVal - i.advanceAmount - deduction);
 
@@ -265,7 +381,9 @@ export default function Invoices() {
 
     let deduction = 0;
     if (i.isLcComplete) deduction += lcVal;
-    if (newStatus) deduction += ttVal;
+    if (newStatus) {
+      deduction += Math.max(0, ttVal - i.ttAmount);
+    }
 
     const newBalance = Math.max(0, totalVal - i.advanceAmount - deduction);
 
@@ -357,6 +475,11 @@ export default function Invoices() {
                           <span className="text-[10px] font-mono text-slate-500 ml-[22px]">
                             {formatCurrency(q?.lcAmount || 0)}
                           </span>
+                          {i.lcNumber && (
+                            <span className="text-[10px] font-mono text-brand-600 ml-[22px]">
+                              No: {i.lcNumber} {i.lcOpenType ? `(${i.lcOpenType === 'company' ? 'Company' : 'Personal'})` : ''}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -373,7 +496,7 @@ export default function Invoices() {
                             </span>
                           </label>
                           <span className="text-[10px] font-mono text-slate-500 ml-[22px]">
-                            {formatCurrency(i.ttAmount || 0)}
+                            {formatCurrency(q?.ttAmount || 0)}
                           </span>
                         </div>
                       </td>
@@ -419,6 +542,10 @@ export default function Invoices() {
                 <div><span className="text-slate-500">Email:</span> <span className="font-medium">{selectedQuotation.email}</span></div>
                 <div className="col-span-2"><span className="text-slate-500">Vehicle:</span> <span className="font-medium">{selectedMake.name} {selectedVehicle.name} — {selectedVehicle.year} {selectedVehicle.color}</span></div>
               </div>
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200">
+                <div><span className="text-slate-500">LC Amount:</span> <span className="font-semibold text-emerald-700">{formatCurrency(selectedQuotation.lcAmount || 0)}</span></div>
+                <div><span className="text-slate-500">Quoted TT:</span> <span className="font-semibold text-blue-700">{formatCurrency(selectedQuotation.ttAmount || 0)}</span></div>
+              </div>
               <div className="flex justify-between pt-3 border-t border-slate-200">
                 <span className="text-slate-600 font-medium">Total Vehicle Cost</span>
                 <span className="font-bold text-brand-700">{formatCurrency(total)}</span>
@@ -428,21 +555,18 @@ export default function Invoices() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">TT Amount (LKR)</label>
-              <input type="number" step="0.01" {...register('ttAmount')} placeholder="Enter TT Amount (e.g. 500000)" className="input" />
-            </div>
-            <div>
               <label className="label">Advance Amount (LKR)</label>
               <input type="number" step="0.01" {...register('advanceAmount')} placeholder="Enter Advance Amount (e.g. 200000)" className="input" />
             </div>
             <div>
               <label className="label">Status</label>
-              <select {...register('status')} className="input">
+              <select {...register('status')} className="input" disabled={!!editingInvoice}>
                 <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
                 <option value="paid">Paid</option>
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end md:col-span-2">
               <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3">
                 <p className="text-xs text-amber-700 font-medium">Balance</p>
                 <p className="text-xl font-bold text-amber-900">{formatCurrency(balance)}</p>
@@ -450,17 +574,35 @@ export default function Invoices() {
             </div>
           </div>
 
-          <div className="border-t pt-4 space-y-3">
+          <div className="border-t pt-4 space-y-4">
             <h4 className="text-sm font-bold text-slate-800">Payment Milestones Status</h4>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" {...register('isLcComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
-                <span className="text-sm text-slate-700 font-medium">LC Amount Completed / Opened</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" {...register('isTtComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
-                <span className="text-sm text-slate-700 font-medium">TT Amount Completed / Paid</span>
-              </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" {...register('isLcComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
+                  <span className="text-sm text-slate-700 font-medium">LC Amount Completed / Opened</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label">LC Number</label>
+                    <input type="text" {...register('lcNumber')} placeholder="Enter LC Number" className="input" />
+                  </div>
+                  <div>
+                    <label className="label">LC Open Type</label>
+                    <select {...register('lcOpenType')} className="input">
+                      <option value="">Select Type</option>
+                      <option value="company">Company</option>
+                      <option value="personal">Personal</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" {...register('isTtComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
+                  <span className="text-sm text-slate-700 font-medium">TT Amount Completed / Paid</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -487,136 +629,245 @@ export default function Invoices() {
           </div>
 
           {editingInvoice && (
-            <div className="border-t pt-4 space-y-4">
-              <h4 className="text-sm font-bold text-slate-800">Attachments & Documents</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">LC Copy (Image/PDF)</label>
-                  {editingInvoice.lcCopyPath && !pendingDeleteLcCopy && (
-                    <div className="mb-2 text-xs flex items-center gap-2">
-                      <span className="text-slate-500">Current LC Copy: </span>
-                      <a 
-                        href={`http://automobile.sourcecode.lk/${editingInvoice.lcCopyPath}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-brand-600 hover:underline font-semibold"
-                      >
-                        View Document
-                      </a>
-                      <button 
-                        type="button" 
-                        onClick={handleDeleteLcCopy} 
-                        className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
-                    </div>
-                  )}
-                  {editingInvoice.lcCopyPath && pendingDeleteLcCopy && (
-                    <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
-                      <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
-                      <button type="button" onClick={() => setPendingDeleteLcCopy(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
-                        <Undo className="w-3 h-3" /> Undo
-                      </button>
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    onChange={(e) => setLcCopyFile(e.target.files?.[0] || null)} 
-                    className="input text-xs" 
-                    accept="image/*,application/pdf"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Inspection Certificate (Image/PDF)</label>
-                  {editingInvoice.inspectionCertificatePath && !pendingDeleteInspectionCertificate && (
-                    <div className="mb-2 text-xs flex items-center gap-2">
-                      <span className="text-slate-500">Current Certificate: </span>
-                      <a 
-                        href={`http://automobile.sourcecode.lk/${editingInvoice.inspectionCertificatePath}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-brand-600 hover:underline font-semibold"
-                      >
-                        View Document
-                      </a>
-                      <button 
-                        type="button" 
-                        onClick={handleDeleteInspectionCertificate} 
-                        className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
-                    </div>
-                  )}
-                  {editingInvoice.inspectionCertificatePath && pendingDeleteInspectionCertificate && (
-                    <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
-                      <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
-                      <button type="button" onClick={() => setPendingDeleteInspectionCertificate(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
-                        <Undo className="w-3 h-3" /> Undo
-                      </button>
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    onChange={(e) => setInspectionCertificateFile(e.target.files?.[0] || null)} 
-                    className="input text-xs" 
-                    accept="image/*,application/pdf"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label">Yard Pictures (One or more images)</label>
+            <>
+              {/* Installment Payments System */}
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-brand-600" />
+                  Installment Payments (Set by Set)
+                </h4>
                 
-                {editingInvoice.yardPictures && editingInvoice.yardPictures.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-3">
-                    {editingInvoice.yardPictures.map((pic) => {
-                      const isPendingDelete = pendingDeleteYardPictureIds.includes(pic.id);
-                      return (
-                        <div key={pic.id} className={`relative group border rounded-lg overflow-hidden bg-slate-50 aspect-video ${isPendingDelete ? 'border-red-500 opacity-40' : 'border-slate-200'}`}>
-                          <img 
-                            src={`http://automobile.sourcecode.lk/${pic.file_path}`} 
-                            alt="Yard" 
-                            className="w-full h-full object-cover"
-                          />
-                          {isPendingDelete ? (
-                            <button 
-                              type="button"
-                              onClick={() => setPendingDeleteYardPictureIds((prev) => prev.filter((id) => id !== pic.id))}
-                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-white font-bold text-[10px] gap-1"
-                              title="Undo Delete"
-                            >
-                              <Undo className="w-3.5 h-3.5 text-white" />
-                              <span>Undo</span>
-                            </button>
-                          ) : (
-                            <button 
-                              type="button"
-                              onClick={() => handleDeleteYardPic(pic.id)}
-                              className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-90 hover:opacity-100 shadow"
-                              title="Delete image"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                {/* Add Payment Form */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Record New Installment</h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Amount (LKR)</label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        value={newPaymentAmount} 
+                        onChange={(e) => setNewPaymentAmount(e.target.value)} 
+                        placeholder="e.g. 500000" 
+                        className="input text-xs" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Date</label>
+                      <input 
+                        type="date" 
+                        value={newPaymentDate} 
+                        onChange={(e) => setNewPaymentDate(e.target.value)} 
+                        className="input text-xs" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Notes</label>
+                      <input 
+                        type="text" 
+                        value={newPaymentNotes} 
+                        onChange={(e) => setNewPaymentNotes(e.target.value)} 
+                        placeholder="Cheque, Transfer reference, etc." 
+                        className="input text-xs" 
+                      />
+                    </div>
                   </div>
-                )}
+                  <div className="flex justify-end">
+                    <button 
+                      type="button" 
+                      onClick={handleAddPayment} 
+                      className="btn-primary py-1 px-3 text-xs flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Record Installment
+                    </button>
+                  </div>
+                </div>
 
-                <input 
-                  type="file" 
-                  multiple 
-                  onChange={(e) => setYardPicturesFiles(Array.from(e.target.files || []))} 
-                  className="input text-xs" 
-                  accept="image/*"
-                />
+                {/* Payments List */}
+                <div className="space-y-2">
+                  <h5 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Payment History</h5>
+                  {payments.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic">No installments recorded yet for this invoice.</p>
+                  ) : (
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                      <table className="min-w-full divide-y divide-slate-200 text-xs">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-semibold text-slate-600">Receipt No</th>
+                            <th className="px-4 py-2 text-left font-semibold text-slate-600">Date</th>
+                            <th className="px-4 py-2 text-left font-semibold text-slate-600">Notes</th>
+                            <th className="px-4 py-2 text-right font-semibold text-slate-600">Amount (LKR)</th>
+                            <th className="px-4 py-2 text-center font-semibold text-slate-600">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {payments.map((p) => (
+                            <tr key={p.id} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-2 font-mono text-slate-600">REC-{p.id}</td>
+                              <td className="px-4 py-2 text-slate-700">{formatDate(p.paymentDate)}</td>
+                              <td className="px-4 py-2 text-slate-500 italic">{p.notes || '—'}</td>
+                              <td className="px-4 py-2 text-right font-bold text-slate-800">{formatCurrency(p.amount)}</td>
+                              <td className="px-4 py-2">
+                                <div className="flex justify-center items-center gap-2">
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setViewingReceipt(p)} 
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                    title="Print Receipt"
+                                  >
+                                    <Printer className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleDeletePayment(p.id)} 
+                                    className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                    title="Delete Installment"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="text-sm font-bold text-slate-800">Attachments & Documents</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">LC Copy (Image/PDF)</label>
+                    {editingInvoice.lcCopyPath && !pendingDeleteLcCopy && (
+                      <div className="mb-2 text-xs flex items-center gap-2">
+                        <span className="text-slate-500">Current LC Copy: </span>
+                        <a 
+                          href={`http://automobile.sourcecode.lk/${editingInvoice.lcCopyPath}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-brand-600 hover:underline font-semibold"
+                        >
+                          View Document
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={handleDeleteLcCopy} 
+                          className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      </div>
+                    )}
+                    {editingInvoice.lcCopyPath && pendingDeleteLcCopy && (
+                      <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
+                        <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
+                        <button type="button" onClick={() => setPendingDeleteLcCopy(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
+                          <Undo className="w-3 h-3" /> Undo
+                        </button>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      onChange={(e) => setLcCopyFile(e.target.files?.[0] || null)} 
+                      className="input text-xs" 
+                      accept="image/*,application/pdf"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">Inspection Certificate (Image/PDF)</label>
+                    {editingInvoice.inspectionCertificatePath && !pendingDeleteInspectionCertificate && (
+                      <div className="mb-2 text-xs flex items-center gap-2">
+                        <span className="text-slate-500">Current Certificate: </span>
+                        <a 
+                          href={`http://automobile.sourcecode.lk/${editingInvoice.inspectionCertificatePath}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-brand-600 hover:underline font-semibold"
+                        >
+                          View Document
+                        </a>
+                        <button 
+                          type="button" 
+                          onClick={handleDeleteInspectionCertificate} 
+                          className="text-red-600 hover:text-red-800 hover:underline font-semibold flex items-center gap-0.5"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      </div>
+                    )}
+                    {editingInvoice.inspectionCertificatePath && pendingDeleteInspectionCertificate && (
+                      <div className="mb-2 text-xs text-red-600 font-semibold italic flex items-center gap-1">
+                        <Trash2 className="w-3 h-3" /> Marked for deletion (Click Save to apply)
+                        <button type="button" onClick={() => setPendingDeleteInspectionCertificate(false)} className="text-blue-600 hover:text-blue-800 hover:underline ml-2 flex items-center gap-0.5 font-bold">
+                          <Undo className="w-3 h-3" /> Undo
+                        </button>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      onChange={(e) => setInspectionCertificateFile(e.target.files?.[0] || null)} 
+                      className="input text-xs" 
+                      accept="image/*,application/pdf"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Yard Pictures (One or more images)</label>
+                  
+                  {editingInvoice.yardPictures && editingInvoice.yardPictures.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-3">
+                      {editingInvoice.yardPictures.map((pic) => {
+                        const isPendingDelete = pendingDeleteYardPictureIds.includes(pic.id);
+                        return (
+                          <div key={pic.id} className={`relative group border rounded-lg overflow-hidden bg-slate-50 aspect-video ${isPendingDelete ? 'border-red-500 opacity-40' : 'border-slate-200'}`}>
+                            <img 
+                              src={`http://automobile.sourcecode.lk/${pic.file_path}`} 
+                              alt="Yard" 
+                              className="w-full h-full object-cover"
+                            />
+                            {isPendingDelete ? (
+                              <button 
+                                type="button"
+                                onClick={() => setPendingDeleteYardPictureIds((prev) => prev.filter((id) => id !== pic.id))}
+                                className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-white font-bold text-[10px] gap-1"
+                                title="Undo Delete"
+                              >
+                                <Undo className="w-3.5 h-3.5 text-white" />
+                                <span>Undo</span>
+                              </button>
+                            ) : (
+                              <button 
+                                type="button"
+                                onClick={() => handleDeleteYardPic(pic.id)}
+                                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-90 hover:opacity-100 shadow"
+                                title="Delete image"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <input 
+                    type="file" 
+                    multiple 
+                    onChange={(e) => setYardPicturesFiles(Array.from(e.target.files || []))} 
+                    className="input text-xs" 
+                    accept="image/*"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div className="flex justify-end gap-2 pt-2 border-t">
@@ -694,6 +945,13 @@ export default function Invoices() {
                     <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Invoice Attachments</h3>
                     <div className="space-y-2 text-xs">
                       <div className="flex justify-between items-center py-1 border-t">
+                        <span className="text-slate-600 font-medium">LC Number</span>
+                        <span className="font-semibold text-slate-700">
+                          {viewing.lcNumber || '—'} {viewing.lcOpenType ? `(${viewing.lcOpenType === 'company' ? 'Company' : 'Personal'})` : ''}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center py-1 border-t">
                         <span className="text-slate-600 font-medium">LC Copy</span>
                         {viewing.lcCopyPath ? (
                           <a 
@@ -756,6 +1014,44 @@ export default function Invoices() {
               </div>
             ) : (
               <p>Missing data</p>
+            )}
+          </Modal>
+        );
+      })()}
+
+      {viewingReceipt && (() => {
+        const q = quotations.find((x) => x.id === editingInvoice?.quotationId);
+        const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
+        const m = makeModels.find((x) => x.id === q?.makeModelId);
+        return (
+          <Modal open={!!viewingReceipt} onClose={() => setViewingReceipt(null)} title={`Receipt REC-${viewingReceipt.id}`} size="xl">
+            {editingInvoice && q && v && m ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <ReceiptPDFViewer 
+                    payment={viewingReceipt} 
+                    invoice={editingInvoice} 
+                    quotation={q} 
+                    vehicle={v} 
+                    make={m} 
+                    allPayments={payments} 
+                  />
+                </div>
+                <div className="space-y-6">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                    <h3 className="font-bold text-slate-800 text-sm border-b pb-2">Actions</h3>
+                    <button 
+                      onClick={() => downloadReceiptPDF({ payment: viewingReceipt, invoice: editingInvoice, quotation: q, vehicle: v, make: m, allPayments: payments })}
+                      className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 px-3 rounded-lg text-xs transition shadow-sm"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-white" />
+                      Download Receipt PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p>Missing data to render receipt preview</p>
             )}
           </Modal>
         );

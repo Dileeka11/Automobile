@@ -5,7 +5,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
-        $stmt = $pdo->query("SELECT * FROM invoices ORDER BY created_at DESC");
+        $stmt = $pdo->query("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i ORDER BY i.created_at DESC");
         $results = [];
         foreach ($stmt->fetchAll() as $row) {
             // Fetch yard pictures for this invoice
@@ -20,6 +20,8 @@ switch ($method) {
                 'advanceAmount' => (float)$row['advance_amount'],
                 'balance' => (float)$row['balance'],
                 'isLcComplete' => (bool)$row['is_lc_complete'],
+                'lcNumber' => $row['lc_number'],
+                'lcOpenType' => $row['lc_open_type'],
                 'isTtComplete' => (bool)$row['is_tt_complete'],
                 'status' => strtolower($row['status']),
                 'lcCopyPath' => $row['lc_copy_path'],
@@ -161,6 +163,14 @@ switch ($method) {
                     $fields[] = "is_lc_complete = ?";
                     $params[] = filter_var($_POST['isLcComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
                 }
+                if (isset($_POST['lcNumber'])) {
+                    $fields[] = "lc_number = ?";
+                    $params[] = empty($_POST['lcNumber']) ? null : $_POST['lcNumber'];
+                }
+                if (isset($_POST['lcOpenType'])) {
+                    $fields[] = "lc_open_type = ?";
+                    $params[] = empty($_POST['lcOpenType']) ? null : $_POST['lcOpenType'];
+                }
                 if (isset($_POST['isTtComplete'])) {
                     $fields[] = "is_tt_complete = ?";
                     $params[] = filter_var($_POST['isTtComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
@@ -190,7 +200,7 @@ switch ($method) {
                 }
 
                 // Fetch updated invoice
-                $stmt = $pdo->prepare("SELECT * FROM invoices WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i WHERE i.id = ?");
                 $stmt->execute([$id]);
                 $row = $stmt->fetch();
 
@@ -205,6 +215,8 @@ switch ($method) {
                     'advanceAmount' => (float)$row['advance_amount'],
                     'balance' => (float)$row['balance'],
                     'isLcComplete' => (bool)$row['is_lc_complete'],
+                    'lcNumber' => $row['lc_number'],
+                    'lcOpenType' => $row['lc_open_type'],
                     'isTtComplete' => (bool)$row['is_tt_complete'],
                     'status' => strtolower($row['status']),
                     'lcCopyPath' => $row['lc_copy_path'],
@@ -240,7 +252,7 @@ switch ($method) {
             $dueDate = date('Y-m-d', strtotime('+3 days'));
             $status = strtoupper($data['status'] ?? 'PENDING');
 
-            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, lc_number, lc_open_type, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $totalAmount = ($data['advanceAmount'] ?? 0) + ($data['balance'] ?? 0);
 
@@ -253,6 +265,8 @@ switch ($method) {
                 $data['advanceAmount'] ?? 0,
                 $data['balance'] ?? 0,
                 isset($data['isLcComplete']) ? ($data['isLcComplete'] ? 1 : 0) : 0,
+                $data['lcNumber'] ?? null,
+                $data['lcOpenType'] ?? null,
                 isset($data['isTtComplete']) ? ($data['isTtComplete'] ? 1 : 0) : 0,
                 $dueDate,
                 $status,
@@ -267,6 +281,8 @@ switch ($method) {
                 'advanceAmount' => (float)($data['advanceAmount'] ?? 0),
                 'balance' => (float)($data['balance'] ?? 0),
                 'isLcComplete' => isset($data['isLcComplete']) ? (bool)$data['isLcComplete'] : false,
+                'lcNumber' => $data['lcNumber'] ?? null,
+                'lcOpenType' => $data['lcOpenType'] ?? null,
                 'isTtComplete' => isset($data['isTtComplete']) ? (bool)$data['isTtComplete'] : false,
                 'status' => strtolower($status),
                 'lcCopyPath' => null,
@@ -316,6 +332,14 @@ switch ($method) {
                 $fields[] = "is_lc_complete = ?";
                 $params[] = $data['isLcComplete'] ? 1 : 0;
             }
+            if (isset($data['lcNumber'])) {
+                $fields[] = "lc_number = ?";
+                $params[] = empty($data['lcNumber']) ? null : $data['lcNumber'];
+            }
+            if (isset($data['lcOpenType'])) {
+                $fields[] = "lc_open_type = ?";
+                $params[] = empty($data['lcOpenType']) ? null : $data['lcOpenType'];
+            }
             if (isset($data['isTtComplete'])) {
                 $fields[] = "is_tt_complete = ?";
                 $params[] = $data['isTtComplete'] ? 1 : 0;
@@ -337,7 +361,7 @@ switch ($method) {
             }
 
             // Fetch updated invoice
-            $stmt = $pdo->prepare("SELECT * FROM invoices WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i WHERE i.id = ?");
             $stmt->execute([$id]);
             $row = $stmt->fetch();
 
@@ -352,6 +376,8 @@ switch ($method) {
                 'advanceAmount' => (float)$row['advance_amount'],
                 'balance' => (float)$row['balance'],
                 'isLcComplete' => (bool)$row['is_lc_complete'],
+                'lcNumber' => $row['lc_number'],
+                'lcOpenType' => $row['lc_open_type'],
                 'isTtComplete' => (bool)$row['is_tt_complete'],
                 'status' => strtolower($row['status']),
                 'lcCopyPath' => $row['lc_copy_path'],
