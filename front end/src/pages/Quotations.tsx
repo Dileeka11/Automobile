@@ -211,8 +211,8 @@ export default function Quotations() {
 
           {/* Vehicle Model Details Card */}
           {selectedVehicle && (
-            <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-slate-50/80 p-4">
-              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wider mb-3">Selected Vehicle Details</p>
+            <div className="rounded-xl border border-brand-100 bg-gradient-to-r from-brand-50/80 to-silver-100/80 p-4">
+              <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-3">Selected Vehicle Details</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-[11px] text-slate-400 uppercase tracking-wide">Model</p>

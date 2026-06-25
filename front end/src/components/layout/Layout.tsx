@@ -40,7 +40,7 @@ export default function Layout() {
   }, [currentUser, pathname, navigate]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
+    <div className="flex h-screen overflow-hidden bg-gradient-to-br from-silver-100 via-brand-50/40 to-bluegray-100/50">
       <Sidebar open={open} onClose={() => setOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar onMenu={() => setOpen(true)} title={title} />

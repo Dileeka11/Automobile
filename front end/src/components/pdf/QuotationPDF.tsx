@@ -4,8 +4,8 @@ import { formatCurrency, formatDate, quotationTotal } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
-const BLUE = '#2956a8';
-const RED = '#e63030';
+const BLUE = '#4169E1';
+const ACCENT = '#647c98';
 const LIGHT_BLUE = '#e8eef7';
 const WHITE = '#ffffff';
 const DARK_TEXT = '#1a1a2e';
@@ -275,7 +275,7 @@ function HeaderCornerStripes() {
       <Svg width={120} height={90} viewBox="0 0 120 90">
         <Polygon points="30,0 120,0 120,90" fill={BLUE} opacity={0.85} />
         <Polygon points="0,0 120,0 120,70" fill={NAVY} opacity={0.15} />
-        <Line x1={15} y1={0} x2={120} y2={75} stroke={RED} strokeWidth={4} />
+        <Line x1={15} y1={0} x2={120} y2={75} stroke={ACCENT} strokeWidth={4} />
       </Svg>
     </View>
   );
@@ -286,7 +286,7 @@ function FooterStripes() {
   return (
     <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
       <Svg width={595} height={55} viewBox="0 0 595 55">
-        <Rect x={0} y={0} width={595} height={3} fill={RED} />
+        <Rect x={0} y={0} width={595} height={3} fill={ACCENT} />
         <Rect x={0} y={5} width={595} height={50} fill={WHITE} />
         <Rect x={0} y={5} width={200} height={2} fill={BLUE} />
         <Rect x={395} y={5} width={200} height={2} fill={BLUE} />
@@ -314,7 +314,7 @@ function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
       )}
       {type === 'location' && (
         <G>
-          <Circle cx={12} cy={12} r={11} fill={RED} />
+          <Circle cx={12} cy={12} r={11} fill={ACCENT} />
           <Path d="M12 5c-2.8 0-5 2.2-5 5 0 4 5 9 5 9s5-5 5-9c0-2.8-2.2-5-5-5z" fill="none" stroke={WHITE} strokeWidth={1} />
           <Circle cx={12} cy={10} r={2} fill="none" stroke={WHITE} strokeWidth={1} />
         </G>

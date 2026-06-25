@@ -8,7 +8,7 @@ import { useDataStore } from '@/store';
 import { formatCurrency, formatDate } from '@/utils';
 import StatusBadge from '@/components/ui/Badge';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6', '#ef4444'];
+const COLORS = ['#4169E1', '#10b981', '#f59e0b', '#98AFC7', '#647c98', '#6389e8', '#ef4444'];
 
 function KPI({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent: string }) {
   return (
@@ -70,15 +70,32 @@ export default function Dashboard() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [quotations, makeModels]);
 
-  const recentQuotations = [...quotations].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 15);
-  const recentInvoices = [...invoices].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)).slice(0, 15);
+  // A bill is closed once its invoice is fully paid (status paid / balance cleared)
+  const isInvoiceClosed = (i: (typeof invoices)[number]) => i.status === 'paid' || Number(i.balance || 0) <= 0;
+
+  // Quotation IDs whose invoice has been fully paid & closed
+  const closedQuotationIds = useMemo(() => {
+    const ids = new Set<string>();
+    invoices.forEach((i) => { if (isInvoiceClosed(i)) ids.add(i.quotationId); });
+    return ids;
+  }, [invoices]);
+
+  // Hide fully-paid / closed bills from the dashboard "recent" tables
+  const recentQuotations = [...quotations]
+    .filter((q) => !closedQuotationIds.has(q.id))
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .slice(0, 15);
+  const recentInvoices = [...invoices]
+    .filter((i) => !isInvoiceClosed(i))
+    .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+    .slice(0, 15);
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPI icon={FileText} label="Total Quotations" value={String(quotations.length)} accent="bg-gradient-to-br from-indigo-500 to-indigo-600" />
+        <KPI icon={FileText} label="Total Quotations" value={String(quotations.length)} accent="bg-gradient-to-br from-brand-500 to-brand-600" />
         <KPI icon={Receipt} label="Total Invoices" value={String(invoices.length)} accent="bg-gradient-to-br from-emerald-500 to-emerald-600" />
-        <KPI icon={Wallet} label="Total Revenue" value={formatCurrency(totalRevenue)} accent="bg-gradient-to-br from-pink-500 to-pink-600" />
+        <KPI icon={Wallet} label="Total Revenue" value={formatCurrency(totalRevenue)} accent="bg-gradient-to-br from-bluegray-500 to-bluegray-600" />
         <KPI icon={Clock} label="Pending Invoices" value={String(pendingInvoices)} accent="bg-gradient-to-br from-amber-500 to-amber-600" />
       </div>
 
@@ -97,7 +114,7 @@ export default function Dashboard() {
               <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} domain={[0, 50]} />
               <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
               <Legend />
-              <Bar dataKey="quotations" fill="#6366f1" name="Quotations" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="quotations" fill="#4169E1" name="Quotations" radius={[6, 6, 0, 0]} />
               <Bar dataKey="invoices" fill="#10b981" name="Invoices" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

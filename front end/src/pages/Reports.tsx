@@ -35,7 +35,7 @@ export default function Reports() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="card p-5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center">
             <Receipt className="w-6 h-6" />
           </div>
           <div>

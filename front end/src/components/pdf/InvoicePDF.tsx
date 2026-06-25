@@ -6,8 +6,8 @@ import { formatCurrency, formatDate, quotationTotal } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
-const BLUE = '#2956a8';
-const RED = '#e63030';
+const BLUE = '#4169E1';
+const ACCENT = '#647c98';
 const LIGHT_BLUE = '#e8eef7';
 const WHITE = '#ffffff';
 const DARK_TEXT = '#1a1a2e';
@@ -316,7 +316,7 @@ const s = StyleSheet.create({
   logisticsValue: {
     fontSize: 7.5,
     fontFamily: 'Helvetica-Bold',
-    color: RED,
+    color: ACCENT,
   },
   /* ── Signature area ── */
   sigRow: {
@@ -464,7 +464,7 @@ function HeaderCornerStripes() {
       <Svg width={120} height={90} viewBox="0 0 120 90">
         <Polygon points="30,0 120,0 120,90" fill={BLUE} opacity={0.85} />
         <Polygon points="0,0 120,0 120,70" fill={NAVY} opacity={0.15} />
-        <Line x1={15} y1={0} x2={120} y2={75} stroke={RED} strokeWidth={4} />
+        <Line x1={15} y1={0} x2={120} y2={75} stroke={ACCENT} strokeWidth={4} />
       </Svg>
     </View>
   );
@@ -475,7 +475,7 @@ function FooterStripes() {
   return (
     <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
       <Svg width={595} height={55} viewBox="0 0 595 55">
-        <Rect x={0} y={0} width={595} height={3} fill={RED} />
+        <Rect x={0} y={0} width={595} height={3} fill={ACCENT} />
         <Rect x={0} y={5} width={595} height={50} fill={WHITE} />
         <Rect x={0} y={5} width={200} height={2} fill={BLUE} />
         <Rect x={395} y={5} width={200} height={2} fill={BLUE} />
@@ -503,7 +503,7 @@ function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
       )}
       {type === 'location' && (
         <G>
-          <Circle cx={12} cy={12} r={11} fill={RED} />
+          <Circle cx={12} cy={12} r={11} fill={ACCENT} />
           <Path d="M12 5c-2.8 0-5 2.2-5 5 0 4 5 9 5 9s5-5 5-9c0-2.8-2.2-5-5-5z" fill="none" stroke={WHITE} strokeWidth={1} />
           <Circle cx={12} cy={10} r={2} fill="none" stroke={WHITE} strokeWidth={1} />
         </G>
@@ -542,6 +542,13 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
     ['DMI Charge', quotation.dmiCharge || 0],
   ];
   const total = quotationTotal(quotation);
+  // Compute live (matches edit-page yellow box). invoice.ttAmount from GET = SUM of installments.
+  const installmentsSum = Number(invoice.ttAmount || 0);
+  const totalAdvance = Number(invoice.advanceAmount || 0)
+    + (invoice.isLcComplete ? Number(quotation.lcAmount || 0) : 0)
+    + (invoice.isTtComplete ? Number(quotation.ttAmount || 0) : 0)
+    + installmentsSum;
+  const balanceDue = Math.max(0, total - totalAdvance);
   const isPaid = invoice.status === 'paid';
 
   return (
@@ -623,25 +630,11 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <Text style={s.totalLabel}>TOTAL</Text>
             <Text style={s.totalValue}>{formatCurrency(total)}</Text>
           </View>
-          {/* Advance Paid */}
+          {/* Total Advance Paid */}
           <View style={s.tRow}>
             <Text style={s.tCellLabel}>Advance Paid</Text>
-            <Text style={s.tCellValue}>- {formatCurrency(invoice.advanceAmount)}</Text>
+            <Text style={s.tCellValue}>- {formatCurrency(totalAdvance)}</Text>
           </View>
-          {/* LC Deduction */}
-          {invoice.isLcComplete && (
-            <View style={s.deductionRow}>
-              <Text style={s.deductionLabel}>✓ LC Payment Completed (Deducted)</Text>
-              <Text style={s.deductionValue}>- {formatCurrency(quotation.lcAmount || 0)}</Text>
-            </View>
-          )}
-          {/* TT Deduction */}
-          {invoice.isTtComplete && (
-            <View style={s.deductionRow}>
-              <Text style={s.deductionLabel}>✓ TT Payment Completed (Deducted)</Text>
-              <Text style={s.deductionValue}>- {formatCurrency(quotation.ttAmount || 0)}</Text>
-            </View>
-          )}
         </View>
 
         {/* ── Balance Due ── */}
@@ -650,7 +643,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             {isPaid ? 'FULLY PAID' : 'BALANCE DUE'}
           </Text>
           <Text style={[s.balanceValue, isPaid ? s.balancePaidText : {}]}>
-            {formatCurrency(invoice.balance)}
+            {formatCurrency(balanceDue)}
           </Text>
         </View>
 
@@ -857,7 +850,7 @@ export function InvoicePDFViewer(props: Props) {
   return (
     <iframe 
       src={pdfUrl || ''} 
-      style={{ width: '100%', height: '70vh', border: 0 }}
+      style={{ width: '100%', height: '82vh', border: 0 }}
       className="rounded-xl border border-slate-200 shadow-sm"
     />
   );

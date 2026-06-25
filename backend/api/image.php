@@ -43,5 +43,9 @@ if (in_array($ext, ['jpg', 'jpeg'])) {
 }
 
 header("Content-Type: $contentType");
+// Force a download (used by the "Download document" button) instead of inline view.
+if (!empty($_GET['download'])) {
+    header('Content-Disposition: attachment; filename="' . basename($realPath) . '"');
+}
 readfile($realPath);
 exit();

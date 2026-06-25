@@ -1,6 +1,43 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
 
+// Save an uploaded clearing document and return its stored DB path (or null).
+function saveInvoiceUpload($fileKey, $prefix, $id) {
+    if (empty($_FILES[$fileKey]) || $_FILES[$fileKey]['error'] !== UPLOAD_ERR_OK) return null;
+    $dir = __DIR__ . '/../uploads/documents/';
+    if (!file_exists($dir)) mkdir($dir, 0777, true);
+    $ext = pathinfo($_FILES[$fileKey]['name'], PATHINFO_EXTENSION);
+    $fileName = $prefix . '_' . $id . '_' . time() . '.' . $ext;
+    if (move_uploaded_file($_FILES[$fileKey]['tmp_name'], $dir . $fileName)) {
+        return 'backend/uploads/documents/' . $fileName;
+    }
+    return null;
+}
+
+// Fetch the user-defined custom clearing documents for an invoice.
+function getCustomDocuments($pdo, $invoiceId) {
+    $stmt = $pdo->prepare("SELECT id, doc_type, file_path FROM invoice_documents WHERE invoice_id = ? ORDER BY created_at ASC");
+    $stmt->execute([$invoiceId]);
+    $docs = [];
+    foreach ($stmt->fetchAll() as $d) {
+        $docs[] = ['id' => (int)$d['id'], 'docType' => $d['doc_type'], 'filePath' => $d['file_path']];
+    }
+    return $docs;
+}
+
+// Delete a clearing document column's file + clear it when the given delete flag is set.
+function deleteInvoiceDoc($pdo, $id, $column, $flag) {
+    if (empty($_POST[$flag])) return;
+    $sel = $pdo->prepare("SELECT $column FROM invoices WHERE id = ?");
+    $sel->execute([$id]);
+    $path = $sel->fetchColumn();
+    if ($path) {
+        $full = __DIR__ . '/../' . str_replace('backend/', '', $path);
+        if (file_exists($full)) unlink($full);
+    }
+    $pdo->prepare("UPDATE invoices SET $column = NULL WHERE id = ?")->execute([$id]);
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
@@ -26,9 +63,13 @@ switch ($method) {
                 'status' => strtolower($row['status']),
                 'lcCopyPath' => $row['lc_copy_path'],
                 'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                'exportCertificatePath' => $row['export_certificate_path'] ?? null,
+                'transferDocumentPath' => $row['transfer_document_path'] ?? null,
+                'customsDocumentPath' => $row['customs_document_path'] ?? null,
                 'etdDate' => $row['etd_date'],
                 'arrivalDate' => $row['arrival_date'],
                 'yardPictures' => $yardPictures,
+                'customDocuments' => getCustomDocuments($pdo, $row['id']),
                 'createdAt' => $row['created_at']
             ];
         }
@@ -61,6 +102,11 @@ switch ($method) {
                         $insCertPath = 'backend/uploads/documents/' . $fileName;
                     }
                 }
+
+                // Clearing documents
+                $exportCertPath = saveInvoiceUpload('exportCertificate', 'export', $id);
+                $transferDocPath = saveInvoiceUpload('transferDocument', 'transfer', $id);
+                $customsDocPath = saveInvoiceUpload('customsDocument', 'customs', $id);
 
                 if (!empty($_FILES['yardPictures'])) {
                     $files = $_FILES['yardPictures'];
@@ -137,6 +183,11 @@ switch ($method) {
                     $upStmt->execute([$id]);
                 }
 
+                // Delete clearing documents if requested
+                deleteInvoiceDoc($pdo, $id, 'export_certificate_path', 'deleteExportCertificate');
+                deleteInvoiceDoc($pdo, $id, 'transfer_document_path', 'deleteTransferDocument');
+                deleteInvoiceDoc($pdo, $id, 'customs_document_path', 'deleteCustomsDocument');
+
                 $fields = [];
                 $params = [];
 
@@ -191,6 +242,18 @@ switch ($method) {
                     $fields[] = "inspection_certificate_path = ?";
                     $params[] = $insCertPath;
                 }
+                if ($exportCertPath) {
+                    $fields[] = "export_certificate_path = ?";
+                    $params[] = $exportCertPath;
+                }
+                if ($transferDocPath) {
+                    $fields[] = "transfer_document_path = ?";
+                    $params[] = $transferDocPath;
+                }
+                if ($customsDocPath) {
+                    $fields[] = "customs_document_path = ?";
+                    $params[] = $customsDocPath;
+                }
 
                 if (count($fields) > 0) {
                     $params[] = $id;
@@ -221,9 +284,13 @@ switch ($method) {
                     'status' => strtolower($row['status']),
                     'lcCopyPath' => $row['lc_copy_path'],
                     'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                    'exportCertificatePath' => $row['export_certificate_path'] ?? null,
+                    'transferDocumentPath' => $row['transfer_document_path'] ?? null,
+                    'customsDocumentPath' => $row['customs_document_path'] ?? null,
                     'etdDate' => $row['etd_date'],
                     'arrivalDate' => $row['arrival_date'],
                     'yardPictures' => $yardPictures,
+                    'customDocuments' => getCustomDocuments($pdo, $row['id']),
                     'createdAt' => $row['created_at']
                 ]);
 
@@ -287,9 +354,13 @@ switch ($method) {
                 'status' => strtolower($status),
                 'lcCopyPath' => null,
                 'inspectionCertificatePath' => null,
+                'exportCertificatePath' => null,
+                'transferDocumentPath' => null,
+                'customsDocumentPath' => null,
                 'etdDate' => $data['etdDate'] ?? null,
                 'arrivalDate' => $data['arrivalDate'] ?? null,
                 'yardPictures' => [],
+                'customDocuments' => [],
                 'createdAt' => date('c')
             ]);
 
@@ -382,9 +453,13 @@ switch ($method) {
                 'status' => strtolower($row['status']),
                 'lcCopyPath' => $row['lc_copy_path'],
                 'inspectionCertificatePath' => $row['inspection_certificate_path'],
+                'exportCertificatePath' => $row['export_certificate_path'] ?? null,
+                'transferDocumentPath' => $row['transfer_document_path'] ?? null,
+                'customsDocumentPath' => $row['customs_document_path'] ?? null,
                 'etdDate' => $row['etd_date'],
                 'arrivalDate' => $row['arrival_date'],
                 'yardPictures' => $yardPictures,
+                'customDocuments' => getCustomDocuments($pdo, $row['id']),
                 'createdAt' => $row['created_at']
             ]);
 
@@ -400,17 +475,15 @@ switch ($method) {
         }
         
         // Fetch files to delete them from folder
-        $stmt = $pdo->prepare("SELECT lc_copy_path, inspection_certificate_path FROM invoices WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT lc_copy_path, inspection_certificate_path, export_certificate_path, transfer_document_path, customs_document_path FROM invoices WHERE id = ?");
         $stmt->execute([$id]);
         $row = $stmt->fetch();
         if ($row) {
-            if ($row['lc_copy_path']) {
-                $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $row['lc_copy_path']);
-                if (file_exists($fullPath)) unlink($fullPath);
-            }
-            if ($row['inspection_certificate_path']) {
-                $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $row['inspection_certificate_path']);
-                if (file_exists($fullPath)) unlink($fullPath);
+            foreach (['lc_copy_path', 'inspection_certificate_path', 'export_certificate_path', 'transfer_document_path', 'customs_document_path'] as $pathCol) {
+                if (!empty($row[$pathCol])) {
+                    $fullPath = __DIR__ . '/../' . str_replace('backend/', '', $row[$pathCol]);
+                    if (file_exists($fullPath)) unlink($fullPath);
+                }
             }
         }
         

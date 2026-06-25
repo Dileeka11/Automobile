@@ -34,7 +34,7 @@ export interface Quotation {
   status?: string;
 }
 
-export type InvoiceStatus = 'pending' | 'paid';
+export type InvoiceStatus = 'pending' | 'partial' | 'paid';
 
 export interface Invoice {
   id: string;
@@ -49,9 +49,13 @@ export interface Invoice {
   isTtComplete?: boolean;
   lcCopyPath?: string | null;
   inspectionCertificatePath?: string | null;
+  exportCertificatePath?: string | null;
+  transferDocumentPath?: string | null;
+  customsDocumentPath?: string | null;
   etdDate?: string | null;
   arrivalDate?: string | null;
   yardPictures?: { id: number; file_path: string }[];
+  customDocuments?: { id: number; docType: string; filePath: string }[];
   createdAt: string;
 }
 

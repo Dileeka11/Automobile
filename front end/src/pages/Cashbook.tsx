@@ -45,12 +45,15 @@ export default function Cashbook() {
     }).filter(item => item.serviceCharge > 0);
   }, [invoices, quotations, vehicleModels, makeModels]);
 
-  const totalInflow = useMemo(() => {
-    // Only count service charge as profit if the customer covered the total payment (balance <= 0)
-    return inflowItems
-      .filter(item => item.isPaid)
-      .reduce((sum, item) => sum + item.serviceCharge, 0);
+  // Only surface a service charge in the cashbook once the invoice's whole amount is fully paid
+  const paidInflowItems = useMemo(() => {
+    return inflowItems.filter(item => item.isPaid);
   }, [inflowItems]);
+
+  const totalInflow = useMemo(() => {
+    // Realized Revenue = sum of every service charge shown in the table (fully-paid invoices only)
+    return paidInflowItems.reduce((sum, item) => sum + item.serviceCharge, 0);
+  }, [paidInflowItems]);
 
   const totalPendingInflow = useMemo(() => {
     // Service charges that are still pending customer covering total payment
@@ -240,13 +243,13 @@ export default function Cashbook() {
                 Service Charge Revenues
               </h4>
               <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                {inflowItems.length} Sales
+                {paidInflowItems.length} Sales
               </span>
             </div>
 
             <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
-              {inflowItems.length === 0 ? (
-                <EmptyState title="No service charge revenues generated yet" />
+              {paidInflowItems.length === 0 ? (
+                <EmptyState title="No fully-paid service charge revenues yet" />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
@@ -259,21 +262,15 @@ export default function Cashbook() {
                     </tr>
                   </thead>
                   <tbody>
-                    {inflowItems.map((item, idx) => (
+                    {paidInflowItems.map((item, idx) => (
                       <tr key={idx}>
                         <td className="font-semibold text-brand-600 text-xs">{item.invoiceId}</td>
                         <td className="text-xs text-slate-700 font-medium">{item.customerName}</td>
                         <td className="text-[11px] text-slate-500">{item.vehicleDetails}</td>
                         <td>
-                          {item.isPaid ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                              Fully Covered
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100" title={`Pending Balance: LKR ${item.balance.toLocaleString()}`}>
-                              Pending (LKR {item.balance.toLocaleString()})
-                            </span>
-                          )}
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            Fully Covered
+                          </span>
                         </td>
                         <td className="text-right font-semibold font-mono text-emerald-600 text-xs">
                           {formatCurrency(item.serviceCharge)}

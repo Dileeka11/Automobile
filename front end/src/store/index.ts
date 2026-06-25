@@ -50,6 +50,8 @@ interface DataState {
   addInvoice: (i: Omit<Invoice, 'id' | 'createdAt'>) => Promise<Invoice>;
   updateInvoice: (id: string, i: Partial<Invoice> | FormData) => Promise<void>;
   deleteInvoice: (id: string) => Promise<void>;
+  addInvoiceDocument: (invoiceId: string, fd: FormData) => Promise<void>;
+  deleteInvoiceDocument: (invoiceId: string, docId: number) => Promise<void>;
 
   // Agreements
   signAgreement: (quotationId: string, signatureBase64: string) => Promise<any>;
@@ -251,6 +253,26 @@ export const useDataStore = create<DataState>((set) => ({
   deleteInvoice: async (id) => {
     await apiFetch(`/backend/api/invoices.php?id=${id}`, { method: 'DELETE' });
     set((s) => ({ invoices: s.invoices.filter((x) => x.id !== id) }));
+  },
+
+  addInvoiceDocument: async (invoiceId, fd) => {
+    const doc = await apiFetch('/backend/api/invoice_documents.php', { method: 'POST', body: fd });
+    set((s) => ({
+      invoices: s.invoices.map((x) =>
+        x.id === invoiceId ? { ...x, customDocuments: [...(x.customDocuments ?? []), doc] } : x
+      ),
+    }));
+  },
+
+  deleteInvoiceDocument: async (invoiceId, docId) => {
+    await apiFetch(`/backend/api/invoice_documents.php?id=${docId}`, { method: 'DELETE' });
+    set((s) => ({
+      invoices: s.invoices.map((x) =>
+        x.id === invoiceId
+          ? { ...x, customDocuments: (x.customDocuments ?? []).filter((d) => d.id !== docId) }
+          : x
+      ),
+    }));
   },
 
   signAgreement: async (quotationId, signatureBase64) => {

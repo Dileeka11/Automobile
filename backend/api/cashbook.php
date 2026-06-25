@@ -39,7 +39,7 @@ switch ($method) {
                 'description' => $description,
                 'dateIncurred' => $dateIncurred,
                 'createdAt' => date('Y-m-d H:i:s')
-            ], 210);
+            ], 201);
         } catch (Exception $e) {
             sendError($e->getMessage(), 500);
         }

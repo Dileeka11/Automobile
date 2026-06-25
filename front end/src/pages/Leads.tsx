@@ -59,9 +59,9 @@ export default function Leads() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'New': return <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">New</span>;
+      case 'New': return <span className="px-2.5 py-1 bg-brand-100 text-brand-700 rounded-full text-xs font-semibold">New</span>;
       case 'Contacted': return <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">Contacted</span>;
-      case 'Converted': return <span className="px-2.5 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">Converted</span>;
+      case 'Converted': return <span className="px-2.5 py-1 bg-bluegray-100 text-bluegray-700 rounded-full text-xs font-semibold">Converted</span>;
       case 'Completed': return <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Completed</span>;
       default: return <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-semibold">{status}</span>;
     }

@@ -6,6 +6,9 @@ try {
     $cols = [
         'lc_copy_path' => "VARCHAR(255) NULL",
         'inspection_certificate_path' => "VARCHAR(255) NULL",
+        'export_certificate_path' => "VARCHAR(255) NULL",
+        'transfer_document_path' => "VARCHAR(255) NULL",
+        'customs_document_path' => "VARCHAR(255) NULL",
         'etd_date' => "DATE NULL",
         'arrival_date' => "DATE NULL"
     ];
@@ -38,6 +41,18 @@ try {
     )";
     $pdo->exec($sqlCreateYardPics);
     echo "Created table 'invoice_yard_pictures' successfully.\n";
+
+    // 3. Create invoice_documents table (custom clearing document types per invoice)
+    $sqlCreateDocs = "CREATE TABLE IF NOT EXISTS invoice_documents (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        invoice_id VARCHAR(50) NOT NULL,
+        doc_type VARCHAR(150) NOT NULL,
+        file_path VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+    )";
+    $pdo->exec($sqlCreateDocs);
+    echo "Created table 'invoice_documents' successfully.\n";
 
     echo "Migration completed successfully.\n";
 } catch (Exception $e) {

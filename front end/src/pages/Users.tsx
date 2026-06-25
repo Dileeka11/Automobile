@@ -17,7 +17,7 @@ const renderRoleBadge = (role: string) => {
     case 'admin':
       return <span className="px-2 py-0.5 text-xs font-semibold bg-red-50 text-red-700 rounded-full border border-red-200">Admin</span>;
     case 'executive':
-      return <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">Executive</span>;
+      return <span className="px-2 py-0.5 text-xs font-semibold bg-brand-50 text-brand-700 rounded-full border border-brand-200">Executive</span>;
     case 'agent':
       return <span className="px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 rounded-full border border-amber-200">Clearing Agent</span>;
     default:

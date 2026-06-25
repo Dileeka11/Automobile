@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Bell, Search, User, AlertTriangle } from 'lucide-react';
+import { Menu, Bell, Search, User, AlertTriangle, MessageSquare } from 'lucide-react';
 import { useDataStore } from '@/store';
 
 interface Props { onMenu: () => void; title?: string; }
@@ -8,8 +8,36 @@ interface Props { onMenu: () => void; title?: string; }
 export default function TopBar({ onMenu, title }: Props) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const { invoices, currentUser, logout } = useDataStore();
+  const { invoices, leads, currentUser, logout, fetchLeads } = useDataStore();
   const navigate = useNavigate();
+
+  // Notifications the user has already read/clicked — persisted so they stay gone across reloads & polls
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedNotifications') || '[]'); }
+    catch { return []; }
+  });
+
+  const dismissNotification = (id: string) => {
+    setDismissed((prev) => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      localStorage.setItem('dismissedNotifications', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Keep website inquiries fresh so the bell alerts on new leads from anywhere in the panel
+  useEffect(() => {
+    fetchLeads().catch(() => {});
+    const interval = setInterval(() => fetchLeads().catch(() => {}), 30000);
+    return () => clearInterval(interval);
+  }, [fetchLeads]);
+
+  // New, not-yet-handled website inquiries that need attention (hide ones already read)
+  const newLeads = useMemo(
+    () => leads.filter((l) => l.status === 'New' && !dismissed.includes(`lead-${l.id}`)),
+    [leads, dismissed]
+  );
 
   const reminders = useMemo(() => {
     const list: { id: string; invoiceId: string; type: 'lc' | 'tt'; message: string }[] = [];
@@ -34,8 +62,10 @@ export default function TopBar({ onMenu, title }: Props) {
         }
       }
     });
-    return list;
-  }, [invoices]);
+    return list.filter((r) => !dismissed.includes(r.id));
+  }, [invoices, dismissed]);
+
+  const totalCount = newLeads.length + reminders.length;
 
   return (
     <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200">
@@ -60,9 +90,9 @@ export default function TopBar({ onMenu, title }: Props) {
             className="p-2 rounded-lg hover:bg-slate-100 relative focus:outline-none"
           >
             <Bell className="w-5 h-5 text-slate-600" />
-            {reminders.length > 0 && (
+            {totalCount > 0 && (
               <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full flex items-center justify-center min-w-[16px] h-[16px] animate-pulse">
-                {reminders.length}
+                {totalCount}
               </span>
             )}
           </button>
@@ -76,32 +106,56 @@ export default function TopBar({ onMenu, title }: Props) {
                   <h3 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
                     <Bell className="w-4 h-4 text-brand-600" /> Notifications
                   </h3>
-                  {reminders.length > 0 && (
+                  {totalCount > 0 && (
                     <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-medium">
-                      {reminders.length} Pending
+                      {totalCount} Pending
                     </span>
                   )}
                 </div>
-                
+
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-150">
-                  {reminders.length === 0 ? (
+                  {totalCount === 0 ? (
                     <div className="p-6 text-center text-slate-400 text-sm">
-                      No pending payment reminders.
+                      No new inquiries or pending reminders.
                     </div>
                   ) : (
-                    reminders.map((r) => (
-                      <div key={r.id} className="p-4 hover:bg-slate-50 transition flex gap-3 text-left">
-                        <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
-                          <AlertTriangle className="w-4 h-4 text-amber-600" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs font-semibold text-amber-800">
-                            {r.type === 'lc' ? 'LC Milestone Warning' : 'TT Milestone Warning'}
-                          </p>
-                          <p className="text-xs text-slate-600 leading-normal">{r.message}</p>
-                        </div>
-                      </div>
-                    ))
+                    <>
+                      {newLeads.map((l) => (
+                        <button
+                          key={`lead-${l.id}`}
+                          onClick={() => { dismissNotification(`lead-${l.id}`); setNotifOpen(false); navigate('/admin/leads'); }}
+                          className="w-full p-4 hover:bg-slate-50 transition flex gap-3 text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                            <MessageSquare className="w-4 h-4 text-brand-600" />
+                          </div>
+                          <div className="space-y-1 min-w-0">
+                            <p className="text-xs font-semibold text-brand-800">New Website Inquiry</p>
+                            <p className="text-xs text-slate-600 leading-normal line-clamp-2">
+                              <span className="font-medium text-slate-800">{l.name}</span>
+                              {l.message ? ` — ${l.message}` : ''}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                      {reminders.map((r) => (
+                        <button
+                          key={r.id}
+                          onClick={() => { dismissNotification(r.id); setNotifOpen(false); navigate('/admin/invoices'); }}
+                          className="w-full p-4 hover:bg-slate-50 transition flex gap-3 text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-4 h-4 text-amber-600" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-amber-800">
+                              {r.type === 'lc' ? 'LC Milestone Warning' : 'TT Milestone Warning'}
+                            </p>
+                            <p className="text-xs text-slate-600 leading-normal">{r.message}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </>
                   )}
                 </div>
               </div>

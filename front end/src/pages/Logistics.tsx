@@ -199,8 +199,8 @@ export default function Logistics() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                         item.vehicleStatus === 'Ordered' ? 'bg-amber-100 text-amber-800' :
-                        item.vehicleStatus === 'Shipped' ? 'bg-blue-100 text-blue-800' :
-                        item.vehicleStatus === 'Clearing' ? 'bg-indigo-100 text-indigo-800' :
+                        item.vehicleStatus === 'Shipped' ? 'bg-brand-100 text-brand-800' :
+                        item.vehicleStatus === 'Clearing' ? 'bg-bluegray-100 text-bluegray-700' :
                         item.vehicleStatus === 'Registered' ? 'bg-teal-100 text-teal-800' :
                         'bg-emerald-100 text-emerald-800'
                       }`}>

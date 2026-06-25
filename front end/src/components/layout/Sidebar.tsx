@@ -41,16 +41,16 @@ export default function Sidebar({ open, onClose }: Props) {
       {open && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={onClose} />}
       <aside className={cn(
         'fixed lg:static inset-y-0 left-0 z-40 w-64 transform transition-transform lg:translate-x-0 flex flex-col',
-        'bg-gradient-to-b from-navy-900 to-navy-950 text-slate-100',
+        'bg-gradient-to-b from-white to-silver-100 text-slate-700 border-r border-silver-200 shadow-sm',
         open ? 'translate-x-0' : '-translate-x-full'
       )}>
-        <div className="flex items-center gap-3 px-6 py-6 border-b border-white/10 flex-shrink-0">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg p-1">
+        <div className="flex items-center gap-3 px-6 py-6 border-b border-silver-200 flex-shrink-0">
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-md ring-1 ring-silver-200 p-1">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h1 className="font-bold text-lg tracking-tight">D&N Automate</h1>
-            <p className="text-xs text-slate-400">Sales Management</p>
+            <h1 className="font-bold text-lg tracking-tight text-slate-900">D&N Automate</h1>
+            <p className="text-xs text-bluegray-500">Sales Management</p>
           </div>
         </div>
 
@@ -62,7 +62,7 @@ export default function Sidebar({ open, onClose }: Props) {
                 'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition',
                 isActive
                   ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                  : 'text-slate-600 hover:bg-brand-50 hover:text-brand-700'
               )}
             >
               <Icon className="w-5 h-5" />
@@ -72,24 +72,24 @@ export default function Sidebar({ open, onClose }: Props) {
         </nav>
 
         {/* User Card & Logout Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-navy-950 flex flex-col gap-2.5">
-          <div className="flex items-center gap-3 px-2 py-1.5 bg-white/5 rounded-xl">
-            <div className="w-8 h-8 rounded-full bg-brand-500/20 flex items-center justify-center text-brand-400 font-semibold text-sm">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-silver-200 bg-silver-100 flex flex-col gap-2.5">
+          <div className="flex items-center gap-3 px-2 py-1.5 bg-white rounded-xl ring-1 ring-silver-200">
+            <div className="w-8 h-8 rounded-full bg-brand-500/15 flex items-center justify-center text-brand-600 font-semibold text-sm">
               {currentUser?.name?.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-200 truncate">{currentUser?.name}</p>
-              <p className="text-[10px] text-slate-400 capitalize">{currentUser?.role}</p>
+              <p className="text-xs font-semibold text-slate-800 truncate">{currentUser?.name}</p>
+              <p className="text-[10px] text-bluegray-500 capitalize">{currentUser?.role}</p>
             </div>
           </div>
-          <button 
-            onClick={handleLogout} 
-            className="flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition text-red-400 hover:bg-red-500/10 hover:text-red-300 w-full"
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium transition text-red-500 hover:bg-red-50 hover:text-red-600 w-full"
           >
             <LogOut className="w-5 h-5" />
             Log Out
           </button>
-          <div className="text-[10px] text-slate-500 text-center">
+          <div className="text-[10px] text-slate-400 text-center">
             <p>© {new Date().getFullYear()} D&N Automate</p>
           </div>
         </div>
