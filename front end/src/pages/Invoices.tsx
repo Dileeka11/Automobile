@@ -834,7 +834,7 @@ export default function Invoices() {
                       <div className="mb-2 text-xs flex items-center gap-2">
                         <span className="text-slate-500">Current LC Copy: </span>
                         <a 
-                          href={`http://automobile.sourcecode.lk/${editingInvoice.lcCopyPath}`} 
+                          href={`/backend/api/image.php?path=${encodeURIComponent(editingInvoice.lcCopyPath)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-brand-600 hover:underline font-semibold"
@@ -872,7 +872,7 @@ export default function Invoices() {
                       <div className="mb-2 text-xs flex items-center gap-2">
                         <span className="text-slate-500">Current Certificate: </span>
                         <a 
-                          href={`http://automobile.sourcecode.lk/${editingInvoice.inspectionCertificatePath}`} 
+                          href={`/backend/api/image.php?path=${encodeURIComponent(editingInvoice.inspectionCertificatePath)}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-brand-600 hover:underline font-semibold"
@@ -915,7 +915,7 @@ export default function Invoices() {
                         return (
                           <div key={pic.id} className={`relative group border rounded-lg overflow-hidden bg-slate-50 aspect-video ${isPendingDelete ? 'border-red-500 opacity-40' : 'border-slate-200'}`}>
                             <img 
-                              src={`http://automobile.sourcecode.lk/${pic.file_path}`} 
+                              src={`/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`} 
                               alt="Yard" 
                               className="w-full h-full object-cover"
                             />
@@ -1042,7 +1042,7 @@ export default function Invoices() {
                         <span className="text-slate-600 font-medium">LC Copy</span>
                         {viewing.lcCopyPath ? (
                           <a 
-                            href={`http://automobile.sourcecode.lk/${viewing.lcCopyPath}`} 
+                            href={`/backend/api/image.php?path=${encodeURIComponent(viewing.lcCopyPath)}`} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="text-brand-600 hover:underline font-semibold"
@@ -1058,7 +1058,7 @@ export default function Invoices() {
                         <span className="text-slate-600 font-medium">Inspection Cert.</span>
                         {viewing.inspectionCertificatePath ? (
                           <a 
-                            href={`http://automobile.sourcecode.lk/${viewing.inspectionCertificatePath}`} 
+                            href={`/backend/api/image.php?path=${encodeURIComponent(viewing.inspectionCertificatePath)}`} 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="text-brand-600 hover:underline font-semibold"
@@ -1080,13 +1080,13 @@ export default function Invoices() {
                         {viewing.yardPictures.map((pic) => (
                           <a 
                             key={pic.id}
-                            href={`http://automobile.sourcecode.lk/${pic.file_path}`}
+                            href={`/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="border border-slate-200 rounded overflow-hidden aspect-video hover:opacity-95 transition"
                           >
                             <img 
-                              src={`http://automobile.sourcecode.lk/${pic.file_path}`} 
+                              src={`/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`} 
                               alt="Yard pic" 
                               className="w-full h-full object-cover" 
                             />

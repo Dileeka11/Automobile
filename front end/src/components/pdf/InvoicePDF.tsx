@@ -455,6 +455,7 @@ interface Props {
   vehicle: VehicleModel;
   make: MakeModel;
   includeAttachments?: boolean;
+  resolvedImages?: ResolvedImages;
 }
 
 /* ── Shared SVG components ── */
@@ -531,7 +532,34 @@ const isImage = (path?: string | null) => {
   return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
 };
 
-export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachments = true }: Props) {
+// Serve uploads through the backend proxy on the same origin the app runs on
+const proxyUrl = (path: string) => `/backend/api/image.php?path=${encodeURIComponent(path)}`;
+
+// react-pdf can only decode JPEG/PNG. The browser can decode webp/gif/etc, so
+// convert any source image to a JPEG data URL via canvas before embedding it.
+async function imageToDataUrl(path?: string | null): Promise<string | null> {
+  if (!path) return null;
+  try {
+    const resp = await fetch(proxyUrl(path));
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(bitmap, 0, 0);
+    if ('close' in bitmap) bitmap.close();
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    return null;
+  }
+}
+
+type ResolvedImages = { lc: string | null; inspection: string | null; yard: (string | null)[] };
+
+export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachments = true, resolvedImages }: Props) {
   const rows: [string, number][] = [
     ['CIF Value', quotation.cifValue || 0],
     ['LC Amount', quotation.lcAmount || 0],
@@ -730,7 +758,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
         <Page size="A4" style={s.attachmentPage}>
           <Text style={s.attachmentTitle}>ATTACHMENT: LC COPY</Text>
           <View style={s.attachmentContainer}>
-            <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(invoice.lcCopyPath)}`} style={s.attachmentImage} />
+            <Image src={resolvedImages?.lc ?? proxyUrl(invoice.lcCopyPath)} style={s.attachmentImage} />
           </View>
         </Page>
       )}
@@ -740,7 +768,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
         <Page size="A4" style={s.attachmentPage}>
           <Text style={s.attachmentTitle}>ATTACHMENT: INSPECTION CERTIFICATE</Text>
           <View style={s.attachmentContainer}>
-            <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(invoice.inspectionCertificatePath)}`} style={s.attachmentImage} />
+            <Image src={resolvedImages?.inspection ?? proxyUrl(invoice.inspectionCertificatePath)} style={s.attachmentImage} />
           </View>
         </Page>
       )}
@@ -752,7 +780,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
           <View style={s.yardGridContainer}>
             {invoice.yardPictures.map((pic, idx) => (
               <View key={pic.id} style={s.yardPhotoBox}>
-                <Image src={`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(pic.file_path)}`} style={s.yardPhotoImg} />
+                <Image src={resolvedImages?.yard?.[idx] ?? proxyUrl(pic.file_path)} style={s.yardPhotoImg} />
                 <Text style={s.yardPhotoLabel}>Yard Photo {idx + 1}</Text>
               </View>
             ))}
@@ -766,9 +794,20 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
 export async function getMergedPDFBlob(props: Props): Promise<Blob> {
   const includeAttachments = props.includeAttachments ?? true;
 
+  // Pre-convert image attachments (incl. webp) to JPEG data URLs so react-pdf can embed them
+  let resolvedImages: ResolvedImages | undefined;
+  if (includeAttachments) {
+    const inv = props.invoice;
+    resolvedImages = {
+      lc: isImage(inv.lcCopyPath) ? await imageToDataUrl(inv.lcCopyPath) : null,
+      inspection: isImage(inv.inspectionCertificatePath) ? await imageToDataUrl(inv.inspectionCertificatePath) : null,
+      yard: inv.yardPictures ? await Promise.all(inv.yardPictures.map((p) => imageToDataUrl(p.file_path))) : [],
+    };
+  }
+
   // 1. Generate the base PDF document containing the invoice and image attachments
-  const baseBlob = await pdf(<InvoiceDoc {...props} />).toBlob();
-  
+  const baseBlob = await pdf(<InvoiceDoc {...props} resolvedImages={resolvedImages} />).toBlob();
+
   if (!includeAttachments) {
     return baseBlob;
   }
@@ -776,10 +815,10 @@ export async function getMergedPDFBlob(props: Props): Promise<Blob> {
   // 2. Collect PDF attachment URLs to merge
   const pdfUrlsToMerge: string[] = [];
   if (props.invoice.lcCopyPath && !isImage(props.invoice.lcCopyPath)) {
-    pdfUrlsToMerge.push(`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(props.invoice.lcCopyPath)}`);
+    pdfUrlsToMerge.push(proxyUrl(props.invoice.lcCopyPath));
   }
   if (props.invoice.inspectionCertificatePath && !isImage(props.invoice.inspectionCertificatePath)) {
-    pdfUrlsToMerge.push(`http://automobile.sourcecode.lk/backend/api/image.php?path=${encodeURIComponent(props.invoice.inspectionCertificatePath)}`);
+    pdfUrlsToMerge.push(proxyUrl(props.invoice.inspectionCertificatePath));
   }
 
   if (pdfUrlsToMerge.length === 0) {
