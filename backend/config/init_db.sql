@@ -236,6 +236,6 @@ CREATE TABLE IF NOT EXISTS website_leads (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     message TEXT,
-    status ENUM('New', 'Contacted', 'Converted', 'Closed') DEFAULT 'New',
+    status ENUM('New', 'Contacted', 'Converted', 'Closed', 'Completed') DEFAULT 'New',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
