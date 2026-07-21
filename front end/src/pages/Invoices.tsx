@@ -109,7 +109,7 @@ export default function Invoices() {
             id: `${i.id}-tt`,
             invoiceId: i.id,
             type: 'tt',
-            message: `Invoice ${i.id}: TT payment is not complete. Remind to collect TT payment.`,
+            message: `Invoice ${i.id}: Other Payment is not complete. Remind to collect Other Payment.`,
           });
         }
       }
@@ -436,7 +436,7 @@ export default function Invoices() {
       + (newTtStatus ? ttVal : 0);
     const newBalance = Math.max(0, totalVal - newTotalAdvance);
     updateInvoice(i.id, { isTtComplete: newTtStatus, balance: newBalance });
-    toast.success(`TT status set to ${newTtStatus ? 'Complete' : 'Pending'} for ${i.id}. Balance updated.`);
+    toast.success(`Other Payment status set to ${newTtStatus ? 'Complete' : 'Pending'} for ${i.id}. Balance updated.`);
   };
 
   return (
@@ -476,7 +476,7 @@ export default function Invoices() {
                   <th>Quotation</th>
                   <th>Customer</th>
                   <th>LC Status</th>
-                  <th>TT Status</th>
+                  <th>Other Payment Status</th>
                   <th>Advance</th>
                   <th>Balance</th>
                   <th>Status</th>
@@ -624,7 +624,7 @@ export default function Invoices() {
                     )}
                     {isTtChecked && (
                       <div className="flex justify-between">
-                        <span>+ TT Amount</span>
+                        <span>+ Other Payment</span>
                         <span className="font-medium">{formatCurrency(selectedQuotation.ttAmount || 0)}</span>
                       </div>
                     )}
@@ -674,7 +674,7 @@ export default function Invoices() {
               <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" {...register('isTtComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
-                  <span className="text-sm text-slate-700 font-medium">TT Amount Completed / Paid</span>
+                  <span className="text-sm text-slate-700 font-medium">Other Payment Completed / Paid</span>
                 </label>
               </div>
             </div>

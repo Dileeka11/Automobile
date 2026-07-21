@@ -76,7 +76,7 @@ function PageHeader({ title, receiptNo, date }: { title: string; receiptNo: stri
     <View style={s.headerRow}>
       <View style={s.companyLogoBlock}>
         <Image src={LOGO_URL} style={s.logoImage} />
-        <Text style={s.companyName}>D&N Automate</Text>
+        <Text style={s.companyName}>D&N Automart</Text>
       </View>
       <View style={s.titleBlock}>
         <Text style={s.docTitle}>{title}</Text>
@@ -174,7 +174,7 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
           )}
           {ttAmount > 0 && (
             <View style={s.row}>
-              <Text style={s.cardLabel}>+ TT Amount:</Text>
+              <Text style={s.cardLabel}>+ Other Payment:</Text>
               <Text style={s.cardValue}>{formatCurrency(ttAmount)}</Text>
             </View>
           )}

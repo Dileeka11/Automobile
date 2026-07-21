@@ -49,7 +49,7 @@ export default function Sidebar({ open, onClose }: Props) {
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h1 className="font-bold text-lg tracking-tight text-slate-900">D&N Automate</h1>
+            <h1 className="font-bold text-lg tracking-tight text-slate-900">D&N Automart</h1>
             <p className="text-xs text-bluegray-500">Sales Management</p>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function Sidebar({ open, onClose }: Props) {
             Log Out
           </button>
           <div className="text-[10px] text-slate-400 text-center">
-            <p>© {new Date().getFullYear()} D&N Automate</p>
+            <p>© {new Date().getFullYear()} D&N Automart</p>
           </div>
         </div>
       </aside>

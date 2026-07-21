@@ -24,7 +24,7 @@ export default function Layout() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const title = titles[pathname] || 'D&N Automate';
+  const title = titles[pathname] || 'D&N Automart';
 
   const currentUser = useDataStore((s) => s.currentUser);
   const fetchData = useDataStore((s) => s.fetchData);

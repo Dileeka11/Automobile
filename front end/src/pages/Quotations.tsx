@@ -33,6 +33,11 @@ type FormData = z.infer<typeof schema>;
 
 const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
 
+// Display labels that shouldn't just be the humanised field name
+const fieldLabels: Partial<Record<(typeof numericFields)[number], string>> = {
+  ttAmount: 'Other Payment',
+};
+
 const defaultFinancials = { mileage: 0, cifValue: 0, lcAmount: 0, ttAmount: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 };
 
 export default function Quotations() {
@@ -247,7 +252,7 @@ export default function Quotations() {
               <div><label className="label">Mileage (km)</label><input type="number" {...register('mileage')} className="input" /></div>
               {numericFields.map((f) => (
                 <div key={f}>
-                  <label className="label">{f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
+                  <label className="label">{fieldLabels[f] ?? f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
                   <input type="number" step="0.01" {...register(f)} className="input" />
                   {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
                 </div>

@@ -57,7 +57,7 @@ export default function TopBar({ onMenu, title }: Props) {
             id: `${i.id}-tt`,
             invoiceId: i.id,
             type: 'tt',
-            message: `Invoice ${i.id}: TT payment is not complete. Remind to collect TT payment.`,
+            message: `Invoice ${i.id}: Other Payment is not complete. Remind to collect Other Payment.`,
           });
         }
       }
@@ -149,7 +149,7 @@ export default function TopBar({ onMenu, title }: Props) {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-semibold text-amber-800">
-                              {r.type === 'lc' ? 'LC Milestone Warning' : 'TT Milestone Warning'}
+                              {r.type === 'lc' ? 'LC Milestone Warning' : 'Other Payment Milestone Warning'}
                             </p>
                             <p className="text-xs text-slate-600 leading-normal">{r.message}</p>
                           </div>

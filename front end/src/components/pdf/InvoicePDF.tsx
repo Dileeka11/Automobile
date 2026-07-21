@@ -563,7 +563,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
   const rows: [string, number][] = [
     ['CIF Value', quotation.cifValue || 0],
     ['LC Amount', quotation.lcAmount || 0],
-    ['TT Amount', quotation.ttAmount || 0],
+    ['Other Payment', quotation.ttAmount || 0],
     ['Tax Amount', quotation.taxAmount || 0],
     ['Service Charge', quotation.serviceCharge || 0],
     ['Clearing Charge', quotation.clearingCharge || 0],
@@ -712,7 +712,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
           <View style={[s.milestoneItem, invoice.isTtComplete ? s.milestoneComplete : s.milestonePending]}>
             <CheckMark complete={!!invoice.isTtComplete} />
             <View>
-              <Text style={[s.milestoneLabel, { color: invoice.isTtComplete ? GREEN : AMBER }]}>TT Payment</Text>
+              <Text style={[s.milestoneLabel, { color: invoice.isTtComplete ? GREEN : AMBER }]}>Other Payment</Text>
               <Text style={[s.milestoneStatus, { color: invoice.isTtComplete ? GREEN : AMBER }]}>
                 {invoice.isTtComplete ? 'Completed' : 'Pending'}
               </Text>

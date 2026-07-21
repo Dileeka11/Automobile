@@ -327,7 +327,7 @@ export function QuotationDoc({ quotation, vehicle, make }: Props) {
   const rows: [string, number][] = [
     ['CIF Value', quotation.cifValue || 0],
     ['LC Amount', quotation.lcAmount || 0],
-    ['TT Amount', quotation.ttAmount || 0],
+    ['Other Payment', quotation.ttAmount || 0],
     ['Tax Amount', quotation.taxAmount || 0],
     ['Service Charge', quotation.serviceCharge || 0],
     ['Clearing Charge', quotation.clearingCharge || 0],

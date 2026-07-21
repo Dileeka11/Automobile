@@ -49,7 +49,7 @@ export default function Login() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-hero flex items-center justify-center shadow-lg shadow-brand-500/20 mb-4">
             <Gauge className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">D&N Automate</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">D&N Automart</h1>
           <p className="text-slate-400 text-sm mt-1">Vehicle Import & Logistics Management</p>
         </div>
 

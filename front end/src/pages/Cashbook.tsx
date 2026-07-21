@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/utils';
 import EmptyState from '@/components/ui/EmptyState';
+import { downloadCashbookReportPDF } from '@/components/pdf/CashbookReportPDF';
 
 type ExpenseFormData = {
   expenseType: string;
@@ -16,6 +17,11 @@ type ExpenseFormData = {
 export default function Cashbook() {
   const { invoices, quotations, vehicleModels, makeModels, cashbookExpenses, addCashbookExpense, deleteCashbookExpense, loading } = useDataStore();
   const [submitting, setSubmitting] = useState(false);
+
+  // From–To report period (empty = all time) + PDF generation state
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ExpenseFormData>({
     defaultValues: {
@@ -45,10 +51,20 @@ export default function Cashbook() {
     }).filter(item => item.serviceCharge > 0);
   }, [invoices, quotations, vehicleModels, makeModels]);
 
+  // Inclusive from–to check. Dates are compared as YYYY-MM-DD strings, so ISO
+  // timestamps (createdAt) and plain dates (dateIncurred) both work.
+  const inRange = (dateStr?: string) => {
+    if (!dateStr) return true;
+    const d = String(dateStr).slice(0, 10);
+    if (fromDate && d < fromDate) return false;
+    if (toDate && d > toDate) return false;
+    return true;
+  };
+
   // Only surface a service charge in the cashbook once the invoice's whole amount is fully paid
   const paidInflowItems = useMemo(() => {
-    return inflowItems.filter(item => item.isPaid);
-  }, [inflowItems]);
+    return inflowItems.filter(item => item.isPaid && inRange(item.createdAt));
+  }, [inflowItems, fromDate, toDate]);
 
   const totalInflow = useMemo(() => {
     // Realized Revenue = sum of every service charge shown in the table (fully-paid invoices only)
@@ -58,17 +74,58 @@ export default function Cashbook() {
   const totalPendingInflow = useMemo(() => {
     // Service charges that are still pending customer covering total payment
     return inflowItems
-      .filter(item => !item.isPaid)
+      .filter(item => !item.isPaid && inRange(item.createdAt))
       .reduce((sum, item) => sum + item.serviceCharge, 0);
-  }, [inflowItems]);
+  }, [inflowItems, fromDate, toDate]);
+
+  // Expenses limited to the selected period
+  const filteredExpenses = useMemo(() => {
+    return cashbookExpenses.filter((exp) => inRange(exp.dateIncurred));
+  }, [cashbookExpenses, fromDate, toDate]);
 
   const totalOutflow = useMemo(() => {
-    return cashbookExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
-  }, [cashbookExpenses]);
+    return filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+  }, [filteredExpenses]);
 
   const netProfit = useMemo(() => {
     return totalInflow - totalOutflow;
   }, [totalInflow, totalOutflow]);
+
+  const handleGenerateReport = async () => {
+    if (fromDate && toDate && fromDate > toDate) {
+      toast.error('"From" date must be before the "To" date');
+      return;
+    }
+    setGenerating(true);
+    try {
+      await downloadCashbookReportPDF({
+        from: fromDate,
+        to: toDate,
+        revenues: paidInflowItems.map((r) => ({
+          invoiceId: r.invoiceId,
+          customerName: r.customerName,
+          vehicleDetails: r.vehicleDetails,
+          serviceCharge: r.serviceCharge,
+          createdAt: r.createdAt,
+        })),
+        expenses: filteredExpenses.map((e) => ({
+          id: e.id,
+          expenseType: e.expenseType,
+          description: e.description,
+          amount: e.amount,
+          dateIncurred: e.dateIncurred,
+        })),
+        totalInflow,
+        totalOutflow,
+        netProfit,
+      });
+      toast.success('Cashbook report generated');
+    } catch {
+      toast.error('Failed to generate the report');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const onSubmit = async (data: ExpenseFormData) => {
     if (Number(data.amount) <= 0) {
@@ -120,9 +177,53 @@ export default function Cashbook() {
 
   return (
     <div className="h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)] flex flex-col min-h-0 space-y-4">
-      <div className="flex-shrink-0">
-        <h2 className="text-xl font-bold text-slate-800 font-display">Corporate Cashbook</h2>
-        <p className="text-xs text-slate-500">Track company profit margins based on service charges offset by general business expenses</p>
+      <div className="flex-shrink-0 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 font-display">Corporate Cashbook</h2>
+          <p className="text-xs text-slate-500">Track company profit margins based on service charges offset by general business expenses</p>
+        </div>
+
+        {/* Report period filter — applies to both tables and the totals above */}
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-semibold text-slate-500 uppercase mb-1">From</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-xl py-1.5 px-2.5 text-xs outline-none focus:border-brand-500 transition font-mono"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-[10px] font-semibold text-slate-500 uppercase mb-1">To</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-xl py-1.5 px-2.5 text-xs outline-none focus:border-brand-500 transition font-mono"
+            />
+          </div>
+
+          {(fromDate || toDate) && (
+            <button
+              onClick={() => { setFromDate(''); setToDate(''); }}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-xs font-semibold transition"
+              title="Clear date filter"
+            >
+              <X className="w-3.5 h-3.5" /> Clear
+            </button>
+          )}
+
+          <button
+            onClick={handleGenerateReport}
+            disabled={generating}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shadow-sm disabled:opacity-60 transition"
+            title="Download a PDF report for the selected period"
+          >
+            {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+            PDF Report
+          </button>
+        </div>
       </div>
 
       {/* Stats Overview */}
@@ -180,7 +281,7 @@ export default function Cashbook() {
                 Expenses Ledger
               </h4>
               <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                {cashbookExpenses.length} Records
+                {filteredExpenses.length} Records
               </span>
             </div>
 
@@ -190,8 +291,8 @@ export default function Cashbook() {
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-500" />
                   Loading ledger...
                 </div>
-              ) : cashbookExpenses.length === 0 ? (
-                <EmptyState title="No expenses recorded yet" />
+              ) : filteredExpenses.length === 0 ? (
+                <EmptyState title={fromDate || toDate ? 'No expenses in the selected period' : 'No expenses recorded yet'} />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
@@ -204,7 +305,7 @@ export default function Cashbook() {
                     </tr>
                   </thead>
                   <tbody>
-                    {cashbookExpenses.map((exp) => (
+                    {filteredExpenses.map((exp) => (
                       <tr key={exp.id}>
                         <td className="text-slate-600 text-xs">{formatDate(exp.dateIncurred)}</td>
                         <td>
@@ -249,7 +350,7 @@ export default function Cashbook() {
 
             <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
               {paidInflowItems.length === 0 ? (
-                <EmptyState title="No fully-paid service charge revenues yet" />
+                <EmptyState title={fromDate || toDate ? 'No fully-paid service charge revenues in the selected period' : 'No fully-paid service charge revenues yet'} />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
