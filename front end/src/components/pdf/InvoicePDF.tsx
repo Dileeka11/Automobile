@@ -472,7 +472,7 @@ function HeaderCornerStripes() {
 }
 
 
-function FooterStripes() {
+export function FooterStripes() {
   return (
     <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
       <Svg width={595} height={55} viewBox="0 0 595 55">
@@ -485,7 +485,7 @@ function FooterStripes() {
   );
 }
 
-function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
+export function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
   const size = 14;
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">

@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo } from 'lucide-react';
+import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo, FileSignature } from 'lucide-react';
 import { useDataStore, toast, quotationTotal } from '@/store';
 import { Invoice, InvoicePayment } from '@/types';
 import Modal from '@/components/ui/Modal';
@@ -18,6 +18,7 @@ import {
   downloadConsolidatedReceiptPDF,
   downloadInstallmentSlipPDF,
 } from '@/components/pdf/ReceiptPDF';
+import LeaseInvoiceModal from '@/components/invoice/LeaseInvoiceModal';
 
 const schema = z.object({
   quotationId: z.string().min(1, 'Select a quotation'),
@@ -58,6 +59,7 @@ export default function Invoices() {
   const [viewingInstallmentSlip, setViewingInstallmentSlip] = useState<InvoicePayment | null>(null);
   
   const [includeAttachmentsInView, setIncludeAttachmentsInView] = useState(true);
+  const [leaseInvoiceOpen, setLeaseInvoiceOpen] = useState(false);
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -968,8 +970,14 @@ export default function Invoices() {
         const q = quotations.find((x) => x.id === viewing.quotationId);
         const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
         const m = makeModels.find((x) => x.id === q?.makeModelId);
+        // Total advance collected so far (matches the invoice PDF calculation)
+        const viewTotalAdvance = Number(viewing.advanceAmount || 0)
+          + (viewing.isLcComplete ? Number(q?.lcAmount || 0) : 0)
+          + (viewing.isTtComplete ? Number(q?.ttAmount || 0) : 0)
+          + Number(viewing.ttAmount || 0);
         return (
-          <Modal open={!!viewing} onClose={() => setViewing(null)} title={`Invoice ${viewing.id}`} size="2xl">
+          <>
+          <Modal open={!!viewing} onClose={() => { setViewing(null); setLeaseInvoiceOpen(false); }} title={`Invoice ${viewing.id}`} size="2xl">
             {q && v && m ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
@@ -992,7 +1000,14 @@ export default function Invoices() {
                     </label>
 
                     <div className="space-y-2 pt-1">
-                      <button 
+                      <button
+                        onClick={() => setLeaseInvoiceOpen(true)}
+                        className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-3 rounded-lg text-xs transition shadow-sm"
+                      >
+                        <FileSignature className="w-3.5 h-3.5 text-white" />
+                        Lease Invoice
+                      </button>
+                      <button
                         onClick={() => handlePrint(viewing, false)}
                         className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-lg text-xs transition"
                       >
@@ -1103,6 +1118,20 @@ export default function Invoices() {
               <p>Missing data</p>
             )}
           </Modal>
+
+          {leaseInvoiceOpen && q && v && m && (
+            <LeaseInvoiceModal
+              open={leaseInvoiceOpen}
+              onClose={() => setLeaseInvoiceOpen(false)}
+              invoice={viewing}
+              quotation={q}
+              vehicle={v}
+              make={m}
+              totalAdvance={viewTotalAdvance}
+              onDownloaded={() => toast.success('Lease invoice downloaded')}
+            />
+          )}
+          </>
         );
       })()}
 
