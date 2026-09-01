@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, BookOpen, Inbox, Users, LogOut, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, BookOpen, Inbox, Users, LogOut, UserCheck, Palette, MessageSquareQuote } from 'lucide-react';
 import { cn } from '@/utils';
 import { useDataStore } from '@/store';
 
@@ -15,6 +15,8 @@ const baseLinks = [
   // { to: '/admin/reports', label: 'Accounting & Reports', icon: BarChart3 },
   { to: '/admin/cashbook', label: 'Corporate Cashbook', icon: BookOpen },
   { to: '/admin/leads', label: 'CRM Leads', icon: Inbox },
+  { to: '/admin/website', label: 'Website Customize', icon: Palette },
+  { to: '/admin/feedback', label: 'Feedback Manage', icon: MessageSquareQuote },
 ];
 
 interface Props { open: boolean; onClose: () => void; }
@@ -33,7 +35,7 @@ export default function Sidebar({ open, onClose }: Props) {
   const handleLogout = () => {
     logout();
     onClose();
-    navigate('/login');
+    navigate('/admin');
   };
 
   return (

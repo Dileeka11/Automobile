@@ -239,3 +239,12 @@
 
 
 
+
+/* Horizontal card strips (e.g. the "Our Clients" row) scroll without a visible bar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

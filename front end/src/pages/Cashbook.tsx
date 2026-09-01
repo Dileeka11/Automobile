@@ -1,11 +1,29 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X, Undo2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/utils';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCashbookReportPDF } from '@/components/pdf/CashbookReportPDF';
+
+const CATEGORY_API = '/backend/api/expense_categories.php';
+
+/** Categories that ship with the app and cannot be removed */
+const BUILT_IN_CATEGORIES = [
+  { value: 'Rent', label: 'Rent' },
+  { value: 'Salary', label: 'Salaries & Wages' },
+  { value: 'Utility Bills', label: 'Utility Bills' },
+  { value: 'Office Equipment', label: 'Office Supplies / Equipment' },
+  { value: 'Marketing', label: 'Marketing & Advertising' },
+  { value: 'Other', label: 'Other Operational Costs' },
+];
+
+/** Sentinel values for the two action rows at the bottom of the dropdown */
+const ADD_NEW = '__add_new__';
+const ONE_OFF = '__one_off__';
+
+interface ExpenseCategory { id: number; name: string; }
 
 type ExpenseFormData = {
   expenseType: string;
@@ -23,7 +41,21 @@ export default function Cashbook() {
   const [toDate, setToDate] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ExpenseFormData>({
+  /* ── Expense categories: built-ins + user-added ones + a one-off text box ── */
+  const [customCategories, setCustomCategories] = useState<ExpenseCategory[]>([]);
+  const [oneOff, setOneOff] = useState<string | null>(null);
+
+  const loadCategories = async () => {
+    try {
+      const resp = await fetch(CATEGORY_API);
+      if (resp.ok) setCustomCategories(await resp.json());
+    } catch {
+      /* keep the built-in list */
+    }
+  };
+  useEffect(() => { loadCategories(); }, []);
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ExpenseFormData>({
     defaultValues: {
       expenseType: 'Rent',
       amount: 0,
@@ -127,6 +159,81 @@ export default function Cashbook() {
     }
   };
 
+  const selectedCategory = watch('expenseType');
+  const deletableCategory = customCategories.find((c) => c.name === selectedCategory);
+
+  /** The dropdown doubles as the "add" and "type your own" entry point */
+  const handleCategoryChange = async (value: string) => {
+    if (value === ONE_OFF) {
+      setOneOff('');
+      setValue('expenseType', '');
+      return;
+    }
+    if (value !== ADD_NEW) {
+      setOneOff(null);
+      setValue('expenseType', value);
+      return;
+    }
+
+    const { value: name } = await Swal.fire({
+      title: 'New Expense Category',
+      input: 'text',
+      inputPlaceholder: 'e.g. Fuel & Transport',
+      inputAttributes: { maxlength: '100' },
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      confirmButtonText: 'Add Category',
+      inputValidator: (v) => (v && v.trim() ? undefined : 'Please enter a category name'),
+    });
+
+    if (!name || !name.trim()) return;
+
+    try {
+      const resp = await fetch(CATEGORY_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${resp.status}`);
+      }
+      const saved: ExpenseCategory = await resp.json();
+      setCustomCategories((list) =>
+        list.some((c) => c.id === saved.id) ? list : [...list, saved].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setOneOff(null);
+      setValue('expenseType', saved.name);
+      toast.success(`"${saved.name}" added`);
+    } catch (e: any) {
+      toast.error(e.message || 'Could not add the category');
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!deletableCategory) return;
+    const result = await Swal.fire({
+      title: `Remove "${deletableCategory.name}"?`,
+      text: 'It disappears from the dropdown. Expenses already recorded under it are not changed.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Yes, remove it',
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const resp = await fetch(`${CATEGORY_API}?id=${deletableCategory.id}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      setCustomCategories((list) => list.filter((c) => c.id !== deletableCategory.id));
+      setValue('expenseType', BUILT_IN_CATEGORIES[0].value);
+      toast.success('Category removed');
+    } catch (e: any) {
+      toast.error(e.message || 'Could not remove the category');
+    }
+  };
+
   const onSubmit = async (data: ExpenseFormData) => {
     if (Number(data.amount) <= 0) {
       toast.error('Amount must be greater than 0');
@@ -141,6 +248,7 @@ export default function Cashbook() {
         dateIncurred: data.dateIncurred
       });
       toast.success('Expense recorded successfully');
+      setOneOff(null);
       reset({
         expenseType: 'Rent',
         amount: 0,
@@ -399,17 +507,73 @@ export default function Cashbook() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase">Expense Category</label>
-                <select
-                  {...register('expenseType', { required: true })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand-500 focus:bg-white transition"
-                >
-                  <option value="Rent">Rent</option>
-                  <option value="Salary">Salaries & Wages</option>
-                  <option value="Utility Bills">Utility Bills</option>
-                  <option value="Office Equipment">Office Supplies / Equipment</option>
-                  <option value="Marketing">Marketing & Advertising</option>
-                  <option value="Other">Other Operational Costs</option>
-                </select>
+
+                {oneOff === null ? (
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand-500 focus:bg-white transition"
+                    >
+                      {BUILT_IN_CATEGORIES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                      {customCategories.length > 0 && (
+                        <optgroup label="Your categories">
+                          {customCategories.map((c) => (
+                            <option key={c.id} value={c.name}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <optgroup label="&nbsp;">
+                        <option value={ADD_NEW}>+  Add new category...</option>
+                        <option value={ONE_OFF}>✎  Type one just for this entry...</option>
+                      </optgroup>
+                    </select>
+
+                    {deletableCategory && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteCategory}
+                        title={`Remove "${deletableCategory.name}" from the list`}
+                        className="px-3 rounded-xl border border-slate-200 text-red-600 hover:bg-red-50 transition flex-shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      value={oneOff}
+                      onChange={(e) => {
+                        setOneOff(e.target.value);
+                        setValue('expenseType', e.target.value);
+                      }}
+                      placeholder="Type this expense category"
+                      maxLength={100}
+                      className="flex-1 bg-white border border-brand-400 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand-500 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOneOff(null);
+                        setValue('expenseType', BUILT_IN_CATEGORIES[0].value);
+                      }}
+                      title="Back to the category list"
+                      className="px-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition flex-shrink-0"
+                    >
+                      <Undo2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {oneOff !== null && (
+                  <p className="text-[10px] text-slate-400">Used for this expense only — it is not added to the list.</p>
+                )}
+                {errors.expenseType && <p className="text-[10px] text-red-500">Please choose or type a category</p>}
+                <input type="hidden" {...register('expenseType', { required: true })} />
               </div>
 
               <div className="space-y-1">

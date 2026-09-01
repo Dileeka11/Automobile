@@ -201,7 +201,7 @@ export default function TopBar({ onMenu, title }: Props) {
                     onClick={() => {
                       logout();
                       setProfileOpen(false);
-                      navigate('/login');
+                      navigate('/admin');
                     }}
                     className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-xs rounded-lg transition"
                   >

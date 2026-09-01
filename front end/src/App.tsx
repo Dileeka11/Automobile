@@ -14,11 +14,18 @@ import Leads from '@/pages/Leads';
 import Login from '@/pages/Login';
 import Users from '@/pages/Users';
 import Cashbook from '@/pages/Cashbook';
+import WebsiteCustomize from '@/pages/WebsiteCustomize';
+import FeedbackManage from '@/pages/FeedbackManage';
 import { useDataStore } from '@/store';
 
+/**
+ * The admin area is reached only by typing /admin — there is no link to it from
+ * the public site. When nobody is signed in, /admin renders the login screen in
+ * place (the URL stays /admin) instead of redirecting somewhere else.
+ */
 function PrivateRoute() {
   const currentUser = useDataStore((s) => s.currentUser);
-  return currentUser ? <Outlet /> : <Navigate to="/login" replace />;
+  return currentUser ? <Outlet /> : <Login />;
 }
 
 export default function App() {
@@ -27,7 +34,8 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
+        {/* Old bookmark — the login now lives at /admin */}
+        <Route path="/login" element={<Navigate to="/admin" replace />} />
 
         {/* Protected Routes */}
         <Route path="/admin" element={<PrivateRoute />}>
@@ -43,6 +51,8 @@ export default function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="cashbook" element={<Cashbook />} />
             <Route path="leads" element={<Leads />} />
+            <Route path="website" element={<WebsiteCustomize />} />
+            <Route path="feedback" element={<FeedbackManage />} />
             <Route path="users" element={<Users />} />
           </Route>
         </Route>

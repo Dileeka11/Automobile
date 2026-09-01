@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate, Link } from 'react-router-dom';
-import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useDataStore, toast } from '@/store';
+
+/** Built-in hero images, used until an admin uploads a replacement */
+const DEFAULT_HERO_SLIDES = [
+  { src: '/hero-car.png', alt: 'Porsche GT3' },
+  { src: 'https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=800', alt: 'Ferrari Supercar' },
+  { src: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800', alt: 'Audi e-tron GT' },
+];
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -102,6 +109,92 @@ export default function Landing() {
 
   // 3D Cylinder Carousel State & Auto-Rotate
   const [carouselIdx, setCarouselIdx] = useState(0);
+
+  // Hero images — replaced from the admin "Website Customize" page when uploaded
+  const [heroSlides, setHeroSlides] = useState(DEFAULT_HERO_SLIDES);
+  useEffect(() => {
+    let active = true;
+    fetch('/backend/api/hero_slides.php')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: { slot: number; filePath: string; altText: string | null }[]) => {
+        if (!active || !Array.isArray(rows)) return;
+        setHeroSlides((current) =>
+          current.map((slide, idx) => {
+            const custom = rows.find((r) => Number(r.slot) === idx + 1);
+            return custom
+              ? {
+                  src: `/backend/api/image.php?path=${encodeURIComponent(custom.filePath)}`,
+                  alt: custom.altText || slide.alt,
+                }
+              : slide;
+          }),
+        );
+      })
+      .catch(() => { /* keep the built-in images */ });
+    return () => { active = false; };
+  }, []);
+
+  // "Our Clients" cards — managed from the admin Website Customize page
+  const [clients, setClients] = useState<{ id: number; name: string; city: string | null; filePath: string | null }[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch('/backend/api/clients.php')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => { if (active && Array.isArray(rows)) setClients(rows); })
+      .catch(() => { /* section simply stays hidden */ });
+    return () => { active = false; };
+  }, []);
+
+  // The strip shows five per row; anything beyond that is reached with the arrows
+  const clientsTrack = useRef<HTMLDivElement | null>(null);
+  const scrollClients = (dir: -1 | 1) => {
+    const el = clientsTrack.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth, behavior: 'smooth' });
+  };
+
+  /* ── Visitor feedback: approved entries + the submission form ── */
+  interface Feedback { id: number; name: string; city: string | null; rating: number; message: string; createdAt: string; }
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [openFeedback, setOpenFeedback] = useState<Feedback | null>(null);
+  const feedbackTrack = useRef<HTMLDivElement | null>(null);
+  const scrollFeedback = (dir: -1 | 1) => {
+    const el = feedbackTrack.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth, behavior: 'smooth' });
+  };
+
+  const loadFeedback = () => {
+    fetch('/backend/api/feedback.php')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => { if (Array.isArray(rows)) setFeedback(rows); })
+      .catch(() => { /* section simply stays hidden */ });
+  };
+  useEffect(() => { loadFeedback(); }, []);
+
+  const [fbForm, setFbForm] = useState({ name: '', city: '', rating: 5, message: '' });
+  const [fbSending, setFbSending] = useState(false);
+  const [fbDone, setFbDone] = useState(false);
+
+  const submitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fbForm.name.trim() || !fbForm.message.trim()) return;
+    setFbSending(true);
+    try {
+      const resp = await fetch('/backend/api/feedback.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fbForm),
+      });
+      if (!resp.ok) throw new Error('failed');
+      setFbForm({ name: '', city: '', rating: 5, message: '' });
+      setFbDone(true);
+    } catch {
+      alert('Sorry, your feedback could not be sent. Please try again.');
+    } finally {
+      setFbSending(false);
+    }
+  };
   useEffect(() => {
     if (loading) return;
     const interval = setInterval(() => {
@@ -281,12 +374,6 @@ export default function Landing() {
               <a href="#services" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Services</a>
               <a href="#trust" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Why Us</a>
               <a href="#contact" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Contact</a>
-
-              <Link to="/login" className="relative overflow-hidden px-6 py-2.5 rounded-xl bg-brand-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-brand-700 transition-all duration-300 transform hover:-translate-y-0.5 border border-brand-500/20 flex items-center gap-2 group shadow-lg shadow-brand-600/20 hover:shadow-brand-600/40">
-                <span className="relative z-10">Dealer Login</span>
-                <ArrowRight className="w-3.5 h-3.5 relative z-10 group-hover:translate-x-1 transition-transform duration-300" />
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 pointer-events-none" />
-              </Link>
             </div>
           </div>
         </div>
@@ -328,20 +415,14 @@ export default function Landing() {
                 className="preserve-3d w-full h-full relative transition-transform duration-700 ease-out flex items-center justify-center pointer-events-none"
                 style={{ transform: `rotateY(${carouselIdx * -120}deg)` }}
               >
-                {/* Slide 1: Custom Porsche */}
-                <div className={`absolute w-full max-w-[420px] px-4 cylinder-item-0 preserve-3d transition-all duration-500 ${carouselIdx === 0 ? 'scale-110 opacity-100 filter brightness-105 drop-shadow-[0_15px_15px_rgba(65,105,225,0.35)]' : 'scale-75 opacity-25 filter blur-[2px] grayscale'}`}>
-                  <img src="/hero-car.png" alt="Porsche GT3" className="w-full aspect-[3/2] object-cover rounded-2xl border border-silver-200 shadow-2xl" />
-                </div>
-
-                {/* Slide 2: Unsplash Ferrari */}
-                <div className={`absolute w-full max-w-[420px] px-4 cylinder-item-1 preserve-3d transition-all duration-500 ${carouselIdx === 1 ? 'scale-110 opacity-100 filter brightness-105 drop-shadow-[0_15px_15px_rgba(152,175,199,0.45)]' : 'scale-75 opacity-25 filter blur-[2px] grayscale'}`}>
-                  <img src="https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&q=80&w=800" alt="Ferrari Supercar" className="w-full aspect-[3/2] object-cover rounded-2xl border border-silver-200 shadow-2xl" />
-                </div>
-
-                {/* Slide 3: Unsplash Audi */}
-                <div className={`absolute w-full max-w-[420px] px-4 cylinder-item-2 preserve-3d transition-all duration-500 ${carouselIdx === 2 ? 'scale-110 opacity-100 filter brightness-105 drop-shadow-[0_15px_15px_rgba(65,105,225,0.35)]' : 'scale-75 opacity-25 filter blur-[2px] grayscale'}`}>
-                  <img src="https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&q=80&w=800" alt="Audi e-tron GT" className="w-full aspect-[3/2] object-cover rounded-2xl border border-silver-200 shadow-2xl" />
-                </div>
+                {heroSlides.map((slide, idx) => (
+                  <div
+                    key={idx}
+                    className={`absolute w-full max-w-[420px] px-4 cylinder-item-${idx} preserve-3d transition-all duration-500 ${carouselIdx === idx ? 'scale-110 opacity-100 filter brightness-105 drop-shadow-[0_15px_15px_rgba(65,105,225,0.35)]' : 'scale-75 opacity-25 filter blur-[2px] grayscale'}`}
+                  >
+                    <img src={slide.src} alt={slide.alt} className="w-full aspect-[3/2] object-cover rounded-2xl border border-silver-200 shadow-2xl" />
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -493,6 +574,77 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* --- Our Clients Section --- */}
+      {clients.length > 0 && (
+        <section id="clients" className="py-24 bg-silver-50 border-b border-silver-200 relative">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-14 space-y-4">
+              <h2 className="text-xs font-bold text-brand-600 uppercase tracking-widest">Our Clients</h2>
+              <h3 className="text-4xl font-black text-slate-900">Driven Home By Happy Owners</h3>
+              <div className="w-16 h-1 bg-gradient-to-r from-brand-600 to-bluegray-400 mx-auto rounded-full" />
+            </div>
+
+            <div className="relative">
+              {clients.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => scrollClients(-1)}
+                  aria-label="Previous clients"
+                  className="absolute -left-3 lg:-left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-silver-200 shadow-md text-slate-600 hover:text-brand-700 hover:border-brand-300 transition flex items-center justify-center"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+
+              <div
+                ref={clientsTrack}
+                className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 -mx-1 px-1 no-scrollbar"
+              >
+                {clients.map((c) => (
+                  <div
+                    key={c.id}
+                    className="snap-start flex-shrink-0 w-[calc(50%-10px)] sm:w-[calc(33.333%-14px)] lg:w-[calc(20%-16px)] bg-white border border-silver-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:border-brand-300 hover:-translate-y-1 transition-all duration-300 group"
+                  >
+                    <div className="bg-silver-100 overflow-hidden">
+                      {c.filePath ? (
+                        <img
+                          src={`/backend/api/image.php?path=${encodeURIComponent(c.filePath)}`}
+                          alt={c.name}
+                          loading="lazy"
+                          className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full aspect-square" />
+                      )}
+                    </div>
+                    <div className="p-4 text-center">
+                      <p className="font-bold text-sm text-slate-900 truncate" title={c.name}>{c.name}</p>
+                      {c.city && (
+                        <p className="text-xs text-slate-500 flex items-center justify-center gap-1 mt-1 truncate">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          {c.city}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {clients.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => scrollClients(1)}
+                  aria-label="More clients"
+                  className="absolute -right-3 lg:-right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-silver-200 shadow-md text-slate-600 hover:text-brand-700 hover:border-brand-300 transition flex items-center justify-center"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* --- Why Choose Us Section --- */}
       <div className="bg-slate-50 w-full relative z-10 border-y border-slate-200">
         <section 
@@ -553,6 +705,208 @@ export default function Landing() {
           </div>
         </section>
       </div>
+
+      {/* --- Client Feedback Section --- */}
+      <section id="feedback" className="py-24 bg-white border-b border-silver-200 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+
+          {/* Approved feedback cards - three per row, arrows for the rest */}
+          {feedback.length > 0 && (
+            <div>
+              <div className="text-center mb-14 space-y-4">
+                <h2 className="text-xs font-bold text-brand-600 uppercase tracking-widest">Client Feedback</h2>
+                <h3 className="text-4xl font-black text-slate-900">What Our Customers Say</h3>
+                <div className="w-16 h-1 bg-gradient-to-r from-brand-600 to-bluegray-400 mx-auto rounded-full" />
+              </div>
+
+              <div className="relative">
+                {feedback.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => scrollFeedback(-1)}
+                    aria-label="Previous feedback"
+                    className="absolute -left-3 lg:-left-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-silver-200 shadow-md text-slate-600 hover:text-brand-700 hover:border-brand-300 transition flex items-center justify-center"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                <div
+                  ref={feedbackTrack}
+                  className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 -mx-1 px-1 no-scrollbar"
+                >
+                  {feedback.map((f) => {
+                    const isLong = f.message.length > 180;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setOpenFeedback(f)}
+                        className="snap-start flex-shrink-0 w-[calc(100%-8px)] sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] text-left bg-silver-50 border border-silver-200 rounded-2xl p-6 hover:shadow-lg hover:border-brand-300 hover:-translate-y-1 transition-all duration-300 flex flex-col"
+                      >
+                        <div className="flex gap-0.5 text-amber-400 mb-4">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star key={n} className={`w-4 h-4 ${n <= f.rating ? 'fill-current' : 'text-slate-200 fill-slate-200'}`} />
+                          ))}
+                        </div>
+                        <p className="text-sm text-slate-600 italic leading-relaxed line-clamp-4 flex-1">&ldquo;{f.message}&rdquo;</p>
+                        {isLong && (
+                          <span className="text-xs font-bold text-brand-600 mt-2">... See more</span>
+                        )}
+                        <div className="mt-5 pt-4 border-t border-silver-200">
+                          <p className="font-bold text-sm text-slate-900">{f.name}</p>
+                          {f.city && (
+                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 flex-shrink-0" />
+                              {f.city}
+                            </p>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {feedback.length > 3 && (
+                  <button
+                    type="button"
+                    onClick={() => scrollFeedback(1)}
+                    aria-label="More feedback"
+                    className="absolute -right-3 lg:-right-5 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-white border border-silver-200 shadow-md text-slate-600 hover:text-brand-700 hover:border-brand-300 transition flex items-center justify-center"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Leave feedback */}
+          <div className="max-w-3xl mx-auto bg-silver-50 border border-silver-200 rounded-3xl p-8 sm:p-10">
+            <div className="text-center mb-8 space-y-2">
+              <h3 className="text-2xl font-black text-slate-900">Share Your Experience</h3>
+              <p className="text-sm text-slate-500">
+                Imported a vehicle with us? Tell us how it went - we publish reviews after a quick check.
+              </p>
+            </div>
+
+            {fbDone ? (
+              <div className="text-center py-8 space-y-3">
+                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto" />
+                <p className="font-bold text-slate-900">Thank you for your feedback!</p>
+                <p className="text-sm text-slate-500">It will appear here once our team approves it.</p>
+                <button type="button" onClick={() => setFbDone(false)} className="text-xs font-bold text-brand-600 hover:underline">
+                  Write another
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={submitFeedback} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Name</label>
+                    <input
+                      required
+                      maxLength={150}
+                      value={fbForm.name}
+                      onChange={(e) => setFbForm({ ...fbForm, name: e.target.value })}
+                      placeholder="e.g. Ruwan Silva"
+                      className="mt-2 w-full bg-white border border-silver-200 rounded-xl py-3 px-4 text-sm outline-none focus:border-brand-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">City</label>
+                    <input
+                      maxLength={120}
+                      value={fbForm.city}
+                      onChange={(e) => setFbForm({ ...fbForm, city: e.target.value })}
+                      placeholder="e.g. Kandy"
+                      className="mt-2 w-full bg-white border border-silver-200 rounded-xl py-3 px-4 text-sm outline-none focus:border-brand-500 transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Rating</label>
+                  <div className="mt-2 flex gap-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setFbForm({ ...fbForm, rating: n })}
+                        aria-label={`Rate ${n} out of 5`}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <Star className={`w-6 h-6 ${n <= fbForm.rating ? 'text-amber-400 fill-current' : 'text-slate-300'}`} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Your Feedback</label>
+                  <textarea
+                    required
+                    rows={4}
+                    maxLength={2000}
+                    value={fbForm.message}
+                    onChange={(e) => setFbForm({ ...fbForm, message: e.target.value })}
+                    placeholder="Tell us about your import experience..."
+                    className="mt-2 w-full bg-white border border-silver-200 rounded-xl py-3 px-4 text-sm outline-none focus:border-brand-500 transition resize-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={fbSending}
+                  className="w-full py-4 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-bold transition-all duration-300 shadow-lg shadow-brand-600/20"
+                >
+                  {fbSending ? 'Sending...' : 'Submit Feedback'}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Full feedback popup */}
+      {openFeedback && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setOpenFeedback(null)}
+        >
+          <div
+            className="w-full max-w-xl bg-white rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between p-6 border-b border-silver-200">
+              <div>
+                <p className="font-black text-lg text-slate-900">{openFeedback.name}</p>
+                {openFeedback.city && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3" />
+                    {openFeedback.city}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setOpenFeedback(null)}
+                aria-label="Close"
+                className="p-1.5 rounded-lg hover:bg-silver-100 text-slate-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex gap-0.5 text-amber-400">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Star key={n} className={`w-5 h-5 ${n <= openFeedback.rating ? 'fill-current' : 'text-slate-200 fill-slate-200'}`} />
+                ))}
+              </div>
+              <p className="text-slate-700 leading-relaxed whitespace-pre-line">&ldquo;{openFeedback.message}&rdquo;</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- Interactive Google Map & Contact Section --- */}
       <section 
@@ -739,6 +1093,15 @@ export default function Landing() {
                 <a href="#" className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-brand-600 hover:border-brand-500 hover:text-white hover:-translate-y-1 hover:shadow-lg hover:shadow-brand-500/50 transition-all duration-300 group">
                   <svg className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                 </a>
+                <a
+                  href="https://www.facebook.com/dn.automart"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="D & N AUTOMART on Facebook"
+                  className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-brand-600 hover:border-brand-500 hover:text-white hover:-translate-y-1 hover:shadow-lg hover:shadow-brand-500/50 transition-all duration-300 group"
+                >
+                  <svg className="w-4 h-4 fill-current group-hover:scale-110 transition-transform" viewBox="0 0 24 24"><path d="M22.675 0h-21.35C.593 0 0 .593 0 1.325v21.351C0 23.407.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.323-.593 1.323-1.324V1.325C24 .593 23.407 0 22.675 0z"/></svg>
+                </a>
               </div>
             </div>
 
@@ -802,10 +1165,6 @@ export default function Landing() {
             <div className="flex items-center gap-6 text-xs font-bold uppercase tracking-wider">
               <a href="#" className="fx-underline hover:text-white transition duration-200">Privacy</a>
               <a href="#" className="fx-underline hover:text-white transition duration-200">Terms</a>
-              <div className="w-px h-4 bg-white/20" />
-              <Link to="/login" className="group text-brand-300 hover:text-brand-200 transition duration-200 flex items-center gap-2">
-                Dealer Portal <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform duration-300" />
-              </Link>
             </div>
           </div>
         </div>
