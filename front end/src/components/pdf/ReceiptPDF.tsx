@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
 import { Invoice, MakeModel, Quotation, VehicleModel, InvoicePayment } from '@/types';
-import { formatCurrency, formatDate, quotationTotal } from '@/utils';
+import { formatCurrency, formatDate, quotationTotal, invoiceSettlement } from '@/utils';
 
 const NAVY = '#1a3a6e';
 const BLUE = '#4169E1';
@@ -139,11 +139,22 @@ interface ConsolidatedProps {
 export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make, allPayments }: ConsolidatedProps) {
   const totalVehicleCost = quotationTotal(quotation);
   const advanceAmount = Number(invoice.advanceAmount || 0);
+  const viaCompany = invoice.lcOpenType === 'company';
   const lcAmount = invoice.isLcComplete ? Number(quotation.lcAmount || 0) : 0;
   const ttAmount = invoice.isTtComplete ? Number(quotation.ttAmount || 0) : 0;
   const totalInstallmentsPaid = allPayments.reduce((acc, p) => acc + Number(p.amount), 0);
-  const totalAdvance = advanceAmount + lcAmount + ttAmount + totalInstallmentsPaid;
-  const remainingBalance = Math.max(0, totalVehicleCost - totalAdvance);
+  const settlement = invoiceSettlement({
+    total: totalVehicleCost,
+    advanceAmount,
+    installments: totalInstallmentsPaid,
+    lcAmount: quotation.lcAmount || 0,
+    ttAmount: quotation.ttAmount || 0,
+    isLcComplete: invoice.isLcComplete,
+    isTtComplete: invoice.isTtComplete,
+    lcOpenType: invoice.lcOpenType,
+  });
+  const totalAdvance = settlement.advance;
+  const remainingBalance = settlement.balance;
   const statusStr = invoice.status ? invoice.status.toUpperCase() : 'PENDING';
   const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -166,13 +177,13 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
             <Text style={s.cardLabel}>Advance:</Text>
             <Text style={s.cardValue}>{formatCurrency(advanceAmount)}</Text>
           </View>
-          {lcAmount > 0 && (
+          {lcAmount > 0 && !viaCompany && (
             <View style={s.row}>
               <Text style={s.cardLabel}>+ LC Amount:</Text>
               <Text style={s.cardValue}>{formatCurrency(lcAmount)}</Text>
             </View>
           )}
-          {ttAmount > 0 && (
+          {ttAmount > 0 && !viaCompany && (
             <View style={s.row}>
               <Text style={s.cardLabel}>+ Other Payment:</Text>
               <Text style={s.cardValue}>{formatCurrency(ttAmount)}</Text>
@@ -189,6 +200,12 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
             <Text style={{ fontFamily: 'Helvetica-Bold', color: DARK_TEXT }}>Total Advance:</Text>
             <Text style={s.grandAmount}>{formatCurrency(totalAdvance)}</Text>
           </View>
+          {settlement.companyThrough > 0 && (
+            <View style={s.row}>
+              <Text style={s.cardLabel}>Company Through (LC / Other):</Text>
+              <Text style={s.cardValue}>{formatCurrency(settlement.companyThrough)}</Text>
+            </View>
+          )}
           <View style={s.divider} />
           <View style={s.row}>
             <Text style={{ fontFamily: 'Helvetica-Bold', color: AMBER }}>Remaining Balance:</Text>

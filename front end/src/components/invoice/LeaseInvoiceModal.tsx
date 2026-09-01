@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Printer, Save, RotateCcw } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { toast } from '@/store';
@@ -42,6 +42,17 @@ const withBalance = (f: LeaseInvoiceData): LeaseInvoiceData => ({
   ...f,
   balance: Math.max(0, (f.totalCost || 0) - (f.advance || 0) - (f.leaseAmount || 0)),
 });
+
+const Section = ({ children }: { children: ReactNode }) => (
+  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 pt-1">{children}</p>
+);
+
+const Field = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div>
+    <label className="label text-xs">{label}</label>
+    {children}
+  </div>
+);
 
 export default function LeaseInvoiceModal({
   open,
@@ -211,7 +222,7 @@ export default function LeaseInvoiceModal({
               <button
                 type="button"
                 onClick={handleReset}
-                title="Reload values from the invoice"
+                title="Reload every field from the invoice"
                 className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-brand-600 font-semibold"
               >
                 <RotateCcw className="w-3 h-3" />
@@ -223,9 +234,10 @@ export default function LeaseInvoiceModal({
               <p className="text-xs text-slate-500 italic py-4">Loading saved details...</p>
             ) : (
               <>
+                {/* ── Document ── */}
+                <Section>Document</Section>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="label text-xs">Date</label>
+                  <Field label="Date">
                     <input
                       type="date"
                       className="input text-xs"
@@ -238,104 +250,169 @@ export default function LeaseInvoiceModal({
                         }))
                       }
                     />
-                  </div>
-                  <div>
-                    <label className="label text-xs">Invoice No</label>
+                  </Field>
+                  <Field label="Invoice No">
                     <input
                       className="input text-xs"
                       value={form.invoiceNo}
                       onChange={(e) => set('invoiceNo', e.target.value)}
                     />
-                  </div>
+                  </Field>
                 </div>
 
-                <div>
-                  <label className="label text-xs">Bank Name</label>
+                {/* ── Customer ── */}
+                <Section>Customer</Section>
+                <Field label="Name">
                   <input
                     className="input text-xs"
-                    placeholder="e.g. SAMPATH BANK"
-                    value={form.bankName}
-                    onChange={(e) => set('bankName', e.target.value)}
+                    value={form.customerName}
+                    onChange={(e) => set('customerName', e.target.value)}
                   />
+                </Field>
+                <Field label="Address">
+                  <input
+                    className="input text-xs"
+                    value={form.address}
+                    onChange={(e) => set('address', e.target.value)}
+                  />
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Tel. No">
+                    <input
+                      className="input text-xs"
+                      value={form.telNo}
+                      onChange={(e) => set('telNo', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="For Sale">
+                    <input
+                      className="input text-xs"
+                      value={form.forSale}
+                      onChange={(e) => set('forSale', e.target.value)}
+                    />
+                  </Field>
                 </div>
-                <div>
-                  <label className="label text-xs">Bank Branch</label>
-                  <input
-                    className="input text-xs"
-                    placeholder="e.g. Basar Branch, Mathara"
-                    value={form.bankBranch}
-                    onChange={(e) => set('bankBranch', e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Bank Name">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. SAMPATH BANK"
+                      value={form.bankName}
+                      onChange={(e) => set('bankName', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Bank Branch">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. Basar Branch, Mathara"
+                      value={form.bankBranch}
+                      onChange={(e) => set('bankBranch', e.target.value)}
+                    />
+                  </Field>
                 </div>
 
-                <div>
-                  <label className="label text-xs">Chassis Number</label>
+                {/* ── Vehicle ── */}
+                <Section>Vehicle</Section>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Make">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. TOYOTA"
+                      value={form.make}
+                      onChange={(e) => set('make', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Model">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. 5BA-KSP210 YARIS G"
+                      value={form.model}
+                      onChange={(e) => set('model', e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="YOM">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. 2026"
+                      value={form.yom}
+                      onChange={(e) => set('yom', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Engine Capacity">
+                    <input
+                      className="input text-xs"
+                      placeholder="e.g. 996CC"
+                      value={form.engineCapacity}
+                      onChange={(e) => set('engineCapacity', e.target.value)}
+                    />
+                  </Field>
+                </div>
+                <Field label="Chassis Number">
                   <input
                     className="input text-xs"
                     placeholder="e.g. KSP210-0161362"
                     value={form.chassisNumber}
                     onChange={(e) => set('chassisNumber', e.target.value)}
                   />
-                </div>
-                <div>
-                  <label className="label text-xs">Engine Number</label>
+                </Field>
+                <Field label="Engine Number">
                   <input
                     className="input text-xs"
                     placeholder="e.g. 1KR-3735043"
                     value={form.engineNumber}
                     onChange={(e) => set('engineNumber', e.target.value)}
                   />
-                </div>
+                </Field>
 
+                {/* ── Amounts ── */}
+                <Section>Amounts</Section>
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="label text-xs">Advance (LKR)</label>
+                  <Field label="Advance (LKR)">
                     <input
                       type="number"
                       className="input text-xs"
                       value={form.advance}
                       onChange={(e) => set('advance', Number(e.target.value) || 0)}
                     />
-                  </div>
-                  <div>
-                    <label className="label text-xs">Lease Amount (LKR)</label>
+                  </Field>
+                  <Field label="Lease Amount (LKR)">
                     <input
                       type="number"
                       className="input text-xs"
                       value={form.leaseAmount}
                       onChange={(e) => set('leaseAmount', Number(e.target.value) || 0)}
                     />
-                  </div>
+                  </Field>
                 </div>
-
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="label text-xs">Total Cost (LKR)</label>
+                  <Field label="Total Cost (LKR)">
                     <input
                       type="number"
                       className="input text-xs"
                       value={form.totalCost}
                       onChange={(e) => set('totalCost', Number(e.target.value) || 0)}
                     />
-                  </div>
-                  <div>
-                    <label className="label text-xs">Balance (LKR)</label>
+                  </Field>
+                  <Field label="Balance (LKR)">
                     <input
                       className="input text-xs bg-slate-100"
                       value={data.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       readOnly
                     />
-                  </div>
+                  </Field>
                 </div>
 
-                <div>
-                  <label className="label text-xs">Director Name</label>
+                {/* ── Signature ── */}
+                <Section>Signature</Section>
+                <Field label="Director Name">
                   <input
                     className="input text-xs"
                     value={form.directorName}
                     onChange={(e) => set('directorName', e.target.value)}
                   />
-                </div>
+                </Field>
               </>
             )}
           </div>

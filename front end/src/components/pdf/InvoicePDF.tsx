@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image, Svg, Path, Rect, Circle, Line, G, Polygon } from '@react-pdf/renderer';
 import { PDFDocument } from 'pdf-lib';
 import { Invoice, MakeModel, Quotation, VehicleModel } from '@/types';
-import { formatCurrency, formatDate, quotationTotal } from '@/utils';
+import { formatCurrency, formatDate, quotationTotal, invoiceSettlement } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
@@ -571,12 +571,19 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
   ];
   const total = quotationTotal(quotation);
   // Compute live (matches edit-page yellow box). invoice.ttAmount from GET = SUM of installments.
-  const installmentsSum = Number(invoice.ttAmount || 0);
-  const totalAdvance = Number(invoice.advanceAmount || 0)
-    + (invoice.isLcComplete ? Number(quotation.lcAmount || 0) : 0)
-    + (invoice.isTtComplete ? Number(quotation.ttAmount || 0) : 0)
-    + installmentsSum;
-  const balanceDue = Math.max(0, total - totalAdvance);
+  const settlement = invoiceSettlement({
+    total,
+    advanceAmount: Number(invoice.advanceAmount || 0),
+    installments: Number(invoice.ttAmount || 0),
+    lcAmount: quotation.lcAmount || 0,
+    ttAmount: quotation.ttAmount || 0,
+    isLcComplete: invoice.isLcComplete,
+    isTtComplete: invoice.isTtComplete,
+    lcOpenType: invoice.lcOpenType,
+  });
+  const totalAdvance = settlement.advance;
+  const companyThrough = settlement.companyThrough;
+  const balanceDue = settlement.balance;
   const isPaid = invoice.status === 'paid';
 
   return (
@@ -663,6 +670,12 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <Text style={s.tCellLabel}>Advance Paid</Text>
             <Text style={s.tCellValue}>- {formatCurrency(totalAdvance)}</Text>
           </View>
+          {companyThrough > 0 && (
+            <View style={s.tRow}>
+              <Text style={s.tCellLabel}>Paid Through Company (LC)</Text>
+              <Text style={s.tCellValue}>- {formatCurrency(companyThrough)}</Text>
+            </View>
+          )}
         </View>
 
         {/* ── Balance Due ── */}

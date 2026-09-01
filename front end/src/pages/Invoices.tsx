@@ -10,7 +10,7 @@ import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import StatusBadge from '@/components/ui/Badge';
-import { formatCurrency, formatDate } from '@/utils';
+import { formatCurrency, formatDate, invoiceSettlement } from '@/utils';
 import { InvoicePDFViewer, downloadInvoicePDF } from '@/components/pdf/InvoicePDF';
 import {
   ConsolidatedReceiptPDFViewer,
@@ -72,6 +72,7 @@ export default function Invoices() {
   const isTtChecked = useWatch({ control, name: 'isTtComplete' }) || false;
   const etdVal = useWatch({ control, name: 'etdDate' });
   const arrivalVal = useWatch({ control, name: 'arrivalDate' });
+  const lcOpenTypeVal = useWatch({ control, name: 'lcOpenType' });
 
   const selectedQuotation = useMemo(() => quotations.find((q) => q.id === selectedQId), [quotations, selectedQId]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedQuotation?.vehicleModelId), [vehicleModels, selectedQuotation]);
@@ -80,17 +81,24 @@ export default function Invoices() {
 
   const paymentsSum = useMemo(() => payments.reduce((sum, p) => sum + Number(p.amount), 0), [payments]);
 
-  const totalAdvance = useMemo(() => {
-    if (!selectedQuotation) return Number(advance || 0);
-    const lcVal = selectedQuotation.lcAmount || 0;
-    const ttVal = selectedQuotation.ttAmount || 0;
-    return Number(advance || 0) + (isLcChecked ? lcVal : 0) + (isTtChecked ? ttVal : 0) + paymentsSum;
-  }, [selectedQuotation, advance, isLcChecked, isTtChecked, paymentsSum]);
+  const settlement = useMemo(
+    () =>
+      invoiceSettlement({
+        total,
+        advanceAmount: Number(advance || 0),
+        installments: paymentsSum,
+        lcAmount: selectedQuotation?.lcAmount || 0,
+        ttAmount: selectedQuotation?.ttAmount || 0,
+        isLcComplete: isLcChecked,
+        isTtComplete: isTtChecked,
+        lcOpenType: lcOpenTypeVal,
+      }),
+    [selectedQuotation, total, advance, isLcChecked, isTtChecked, paymentsSum, lcOpenTypeVal],
+  );
 
-  const balance = useMemo(() => {
-    if (!selectedQuotation) return 0;
-    return Math.max(0, total - totalAdvance);
-  }, [selectedQuotation, total, totalAdvance]);
+  const totalAdvance = selectedQuotation ? settlement.advance : Number(advance || 0);
+  const balance = selectedQuotation ? settlement.balance : 0;
+  const lcViaCompany = lcOpenTypeVal === 'company';
 
   // Reminders calculation (>= 5 days since creation)
   const reminders = useMemo(() => {
@@ -143,11 +151,16 @@ export default function Invoices() {
       .filter((p) => p.id !== excludePaymentId)
       .reduce((sum, p) => sum + Number(p.amount), 0) + extraAmount;
     const advanceVal = Number(advance || 0);
-    const totalAdvanceVal = advanceVal
-      + (isLcChecked ? lcVal : 0)
-      + (isTtChecked ? ttVal : 0)
-      + installmentsSum;
-    const balanceVal = Math.max(0, quotationTotal(selectedQuotation) - totalAdvanceVal);
+    const balanceVal = invoiceSettlement({
+      total: quotationTotal(selectedQuotation),
+      advanceAmount: advanceVal,
+      installments: installmentsSum,
+      lcAmount: lcVal,
+      ttAmount: ttVal,
+      isLcComplete: isLcChecked,
+      isTtComplete: isTtChecked,
+      lcOpenType: lcOpenTypeVal,
+    }).balance;
     await updateInvoice(editingInvoice.id, {
       advanceAmount: advanceVal,
       isLcComplete: isLcChecked,
@@ -323,11 +336,16 @@ export default function Invoices() {
     const lcAmountVal = selectedQuotation.lcAmount || 0;
     const ttAmountVal = selectedQuotation.ttAmount || 0;
     const installmentsSum = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalAdvanceVal = Number(data.advanceAmount || 0)
-      + (data.isLcComplete ? lcAmountVal : 0)
-      + (data.isTtComplete ? ttAmountVal : 0)
-      + installmentsSum;
-    const balanceVal = Math.max(0, quotationTotal(selectedQuotation) - totalAdvanceVal);
+    const balanceVal = invoiceSettlement({
+      total: quotationTotal(selectedQuotation),
+      advanceAmount: Number(data.advanceAmount || 0),
+      installments: installmentsSum,
+      lcAmount: lcAmountVal,
+      ttAmount: ttAmountVal,
+      isLcComplete: data.isLcComplete,
+      isTtComplete: data.isTtComplete,
+      lcOpenType: data.lcOpenType,
+    }).balance;
 
     try {
       if (editingInvoice) {
@@ -416,13 +434,16 @@ export default function Invoices() {
   const handleToggleLc = (i: Invoice) => {
     const newLcStatus = !i.isLcComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
-    const totalVal = q ? quotationTotal(q) : 0;
-    const lcVal = q ? (q.lcAmount || 0) : 0;
-    const ttVal = q ? (q.ttAmount || 0) : 0;
-    const newTotalAdvance = i.advanceAmount
-      + (newLcStatus ? lcVal : 0)
-      + (i.isTtComplete ? ttVal : 0);
-    const newBalance = Math.max(0, totalVal - newTotalAdvance);
+    const newBalance = invoiceSettlement({
+      total: q ? quotationTotal(q) : 0,
+      advanceAmount: Number(i.advanceAmount || 0),
+      installments: Number(i.ttAmount || 0),
+      lcAmount: q?.lcAmount || 0,
+      ttAmount: q?.ttAmount || 0,
+      isLcComplete: newLcStatus,
+      isTtComplete: i.isTtComplete,
+      lcOpenType: i.lcOpenType,
+    }).balance;
     updateInvoice(i.id, { isLcComplete: newLcStatus, balance: newBalance });
     toast.success(`LC status set to ${newLcStatus ? 'Complete' : 'Pending'} for ${i.id}. Balance updated.`);
   };
@@ -430,13 +451,16 @@ export default function Invoices() {
   const handleToggleTt = (i: Invoice) => {
     const newTtStatus = !i.isTtComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
-    const totalVal = q ? quotationTotal(q) : 0;
-    const lcVal = q ? (q.lcAmount || 0) : 0;
-    const ttVal = q ? (q.ttAmount || 0) : 0;
-    const newTotalAdvance = i.advanceAmount
-      + (i.isLcComplete ? lcVal : 0)
-      + (newTtStatus ? ttVal : 0);
-    const newBalance = Math.max(0, totalVal - newTotalAdvance);
+    const newBalance = invoiceSettlement({
+      total: q ? quotationTotal(q) : 0,
+      advanceAmount: Number(i.advanceAmount || 0),
+      installments: Number(i.ttAmount || 0),
+      lcAmount: q?.lcAmount || 0,
+      ttAmount: q?.ttAmount || 0,
+      isLcComplete: i.isLcComplete,
+      isTtComplete: newTtStatus,
+      lcOpenType: i.lcOpenType,
+    }).balance;
     updateInvoice(i.id, { isTtComplete: newTtStatus, balance: newBalance });
     toast.success(`Other Payment status set to ${newTtStatus ? 'Complete' : 'Pending'} for ${i.id}. Balance updated.`);
   };
@@ -493,12 +517,18 @@ export default function Invoices() {
                   const showWarning = days >= 5 && (!i.isLcComplete || !i.isTtComplete);
                   // Compute Total Advance & Balance live (matches edit-page yellow box).
                   // i.ttAmount from GET = SUM of installment payments.
-                  const rowInstallments = Number(i.ttAmount || 0);
-                  const rowTotalAdvance = Number(i.advanceAmount || 0)
-                    + (i.isLcComplete ? Number(q?.lcAmount || 0) : 0)
-                    + (i.isTtComplete ? Number(q?.ttAmount || 0) : 0)
-                    + rowInstallments;
-                  const rowBalance = q ? Math.max(0, quotationTotal(q) - rowTotalAdvance) : i.balance;
+                  const rowSettlement = invoiceSettlement({
+                    total: q ? quotationTotal(q) : 0,
+                    advanceAmount: Number(i.advanceAmount || 0),
+                    installments: Number(i.ttAmount || 0),
+                    lcAmount: q?.lcAmount || 0,
+                    ttAmount: q?.ttAmount || 0,
+                    isLcComplete: i.isLcComplete,
+                    isTtComplete: i.isTtComplete,
+                    lcOpenType: i.lcOpenType,
+                  });
+                  const rowTotalAdvance = rowSettlement.advance;
+                  const rowBalance = q ? rowSettlement.balance : i.balance;
                   return (
                     <tr key={i.id}>
                       <td className="font-semibold text-brand-700">
@@ -543,6 +573,11 @@ export default function Invoices() {
                         <div className="flex flex-col gap-0.5">
                           <span className="font-semibold">{formatCurrency(q ? rowTotalAdvance : i.advanceAmount)}</span>
                           <span className="text-[10px] text-slate-400">advance: {formatCurrency(i.advanceAmount)}</span>
+                          {rowSettlement.companyThrough > 0 && (
+                            <span className="text-[10px] text-indigo-500">
+                              company through: {formatCurrency(rowSettlement.companyThrough)}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="font-semibold">{formatCurrency(rowBalance)}</td>
@@ -618,13 +653,13 @@ export default function Invoices() {
                       <span>Advance</span>
                       <span className="font-medium">{formatCurrency(Number(advance || 0))}</span>
                     </div>
-                    {isLcChecked && (
+                    {isLcChecked && !lcViaCompany && (
                       <div className="flex justify-between">
                         <span>+ LC Amount</span>
                         <span className="font-medium">{formatCurrency(selectedQuotation.lcAmount || 0)}</span>
                       </div>
                     )}
-                    {isTtChecked && (
+                    {isTtChecked && !lcViaCompany && (
                       <div className="flex justify-between">
                         <span>+ Other Payment</span>
                         <span className="font-medium">{formatCurrency(selectedQuotation.ttAmount || 0)}</span>
@@ -640,6 +675,28 @@ export default function Invoices() {
                       <span>Total Advance</span>
                       <span>{formatCurrency(totalAdvance)}</span>
                     </div>
+
+                    {/* LC opened through the company: settled, but not part of the customer's advance */}
+                    {lcViaCompany && settlement.companyThrough > 0 && (
+                      <div className="pt-2 mt-1 border-t border-amber-200 space-y-1 text-indigo-700">
+                        {isLcChecked && (
+                          <div className="flex justify-between">
+                            <span>LC Amount <span className="text-[10px]">(company)</span></span>
+                            <span className="font-medium">{formatCurrency(selectedQuotation.lcAmount || 0)}</span>
+                          </div>
+                        )}
+                        {isTtChecked && (
+                          <div className="flex justify-between">
+                            <span>Other Payment <span className="text-[10px]">(company)</span></span>
+                            <span className="font-medium">{formatCurrency(selectedQuotation.ttAmount || 0)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-semibold border-t border-indigo-200 pt-1">
+                          <span>Company Through</span>
+                          <span>{formatCurrency(settlement.companyThrough)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="flex justify-between items-center">
@@ -970,11 +1027,17 @@ export default function Invoices() {
         const q = quotations.find((x) => x.id === viewing.quotationId);
         const v = vehicleModels.find((x) => x.id === q?.vehicleModelId);
         const m = makeModels.find((x) => x.id === q?.makeModelId);
-        // Total advance collected so far (matches the invoice PDF calculation)
-        const viewTotalAdvance = Number(viewing.advanceAmount || 0)
-          + (viewing.isLcComplete ? Number(q?.lcAmount || 0) : 0)
-          + (viewing.isTtComplete ? Number(q?.ttAmount || 0) : 0)
-          + Number(viewing.ttAmount || 0);
+        // Everything settled so far — advance plus anything paid through the company
+        const viewTotalAdvance = invoiceSettlement({
+          total: q ? quotationTotal(q) : 0,
+          advanceAmount: Number(viewing.advanceAmount || 0),
+          installments: Number(viewing.ttAmount || 0),
+          lcAmount: q?.lcAmount || 0,
+          ttAmount: q?.ttAmount || 0,
+          isLcComplete: viewing.isLcComplete,
+          isTtComplete: viewing.isTtComplete,
+          lcOpenType: viewing.lcOpenType,
+        }).settled;
         return (
           <>
           <Modal open={!!viewing} onClose={() => { setViewing(null); setLeaseInvoiceOpen(false); }} title={`Invoice ${viewing.id}`} size="2xl">
