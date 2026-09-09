@@ -139,9 +139,6 @@ interface ConsolidatedProps {
 export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make, allPayments }: ConsolidatedProps) {
   const totalVehicleCost = quotationTotal(quotation);
   const advanceAmount = Number(invoice.advanceAmount || 0);
-  const viaCompany = invoice.lcOpenType === 'company';
-  const lcAmount = invoice.isLcComplete ? Number(quotation.lcAmount || 0) : 0;
-  const ttAmount = invoice.isTtComplete ? Number(quotation.ttAmount || 0) : 0;
   const totalInstallmentsPaid = allPayments.reduce((acc, p) => acc + Number(p.amount), 0);
   const settlement = invoiceSettlement({
     total: totalVehicleCost,
@@ -177,18 +174,6 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
             <Text style={s.cardLabel}>Advance:</Text>
             <Text style={s.cardValue}>{formatCurrency(advanceAmount)}</Text>
           </View>
-          {lcAmount > 0 && !viaCompany && (
-            <View style={s.row}>
-              <Text style={s.cardLabel}>+ LC Amount:</Text>
-              <Text style={s.cardValue}>{formatCurrency(lcAmount)}</Text>
-            </View>
-          )}
-          {ttAmount > 0 && !viaCompany && (
-            <View style={s.row}>
-              <Text style={s.cardLabel}>+ Other Payment:</Text>
-              <Text style={s.cardValue}>{formatCurrency(ttAmount)}</Text>
-            </View>
-          )}
           {allPayments.map((p) => (
             <View key={p.id} style={s.row}>
               <Text style={s.cardLabel}>+ Installment ({formatDate(p.paymentDate)}):</Text>
@@ -202,7 +187,7 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
           </View>
           {settlement.companyThrough > 0 && (
             <View style={s.row}>
-              <Text style={s.cardLabel}>Company Through (LC / Other):</Text>
+              <Text style={s.cardLabel}>LC / Other (Paid — settled separately):</Text>
               <Text style={s.cardValue}>{formatCurrency(settlement.companyThrough)}</Text>
             </View>
           )}

@@ -98,7 +98,6 @@ export default function Invoices() {
 
   const totalAdvance = selectedQuotation ? settlement.advance : Number(advance || 0);
   const balance = selectedQuotation ? settlement.balance : 0;
-  const lcViaCompany = lcOpenTypeVal === 'company';
 
   // Reminders calculation (>= 5 days since creation)
   const reminders = useMemo(() => {
@@ -547,7 +546,7 @@ export default function Invoices() {
                       <td>
                         <div className="flex flex-col gap-0.5">
                           <span className={`text-xs font-medium ${i.isLcComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            {i.isLcComplete ? 'Complete' : 'Pending'}
+                            {i.isLcComplete ? 'Paid' : 'Pending'}
                           </span>
                           <span className="text-[10px] font-mono text-slate-500">
                             {formatCurrency(q?.lcAmount || 0)}
@@ -562,7 +561,7 @@ export default function Invoices() {
                       <td>
                         <div className="flex flex-col gap-0.5">
                           <span className={`text-xs font-medium ${i.isTtComplete ? 'text-emerald-700' : 'text-slate-500'}`}>
-                            {i.isTtComplete ? 'Complete' : 'Pending'}
+                            {i.isTtComplete ? 'Paid' : 'Pending'}
                           </span>
                           <span className="text-[10px] font-mono text-slate-500">
                             {formatCurrency(q?.ttAmount || 0)}
@@ -575,7 +574,7 @@ export default function Invoices() {
                           <span className="text-[10px] text-slate-400">advance: {formatCurrency(i.advanceAmount)}</span>
                           {rowSettlement.companyThrough > 0 && (
                             <span className="text-[10px] text-indigo-500">
-                              company through: {formatCurrency(rowSettlement.companyThrough)}
+                              settled internally: {formatCurrency(rowSettlement.companyThrough)}
                             </span>
                           )}
                         </div>
@@ -653,18 +652,6 @@ export default function Invoices() {
                       <span>Advance</span>
                       <span className="font-medium">{formatCurrency(Number(advance || 0))}</span>
                     </div>
-                    {isLcChecked && !lcViaCompany && (
-                      <div className="flex justify-between">
-                        <span>+ LC Amount</span>
-                        <span className="font-medium">{formatCurrency(selectedQuotation.lcAmount || 0)}</span>
-                      </div>
-                    )}
-                    {isTtChecked && !lcViaCompany && (
-                      <div className="flex justify-between">
-                        <span>+ Other Payment</span>
-                        <span className="font-medium">{formatCurrency(selectedQuotation.ttAmount || 0)}</span>
-                      </div>
-                    )}
                     {payments.map((p) => (
                       <div key={p.id} className="flex justify-between">
                         <span>+ Installment <span className="font-mono text-amber-600">({formatDate(p.paymentDate)})</span></span>
@@ -672,27 +659,27 @@ export default function Invoices() {
                       </div>
                     ))}
                     <div className="flex justify-between font-semibold border-t border-amber-200 pt-1">
-                      <span>Total Advance</span>
+                      <span>Total Advance (Customer Paid)</span>
                       <span>{formatCurrency(totalAdvance)}</span>
                     </div>
 
-                    {/* LC opened through the company: settled, but not part of the customer's advance */}
-                    {lcViaCompany && settlement.companyThrough > 0 && (
+                    {/* LC / Other Payment: settled internally, shown as Paid — NOT deducted from the balance */}
+                    {settlement.companyThrough > 0 && (
                       <div className="pt-2 mt-1 border-t border-amber-200 space-y-1 text-indigo-700">
                         {isLcChecked && (
                           <div className="flex justify-between">
-                            <span>LC Amount <span className="text-[10px]">(company)</span></span>
+                            <span>LC Amount <span className="text-[10px]">(Paid — settled internally)</span></span>
                             <span className="font-medium">{formatCurrency(selectedQuotation.lcAmount || 0)}</span>
                           </div>
                         )}
                         {isTtChecked && (
                           <div className="flex justify-between">
-                            <span>Other Payment <span className="text-[10px]">(company)</span></span>
+                            <span>Other Payment <span className="text-[10px]">(Paid — settled internally)</span></span>
                             <span className="font-medium">{formatCurrency(selectedQuotation.ttAmount || 0)}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-semibold border-t border-indigo-200 pt-1">
-                          <span>Company Through</span>
+                          <span>Settled Internally (Not in Balance)</span>
                           <span>{formatCurrency(settlement.companyThrough)}</span>
                         </div>
                       </div>

@@ -665,15 +665,15 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <Text style={s.totalLabel}>TOTAL</Text>
             <Text style={s.totalValue}>{formatCurrency(total)}</Text>
           </View>
-          {/* Total Advance Paid */}
+          {/* Total Advance Paid (customer cash — the only thing that reduces the balance) */}
           <View style={s.tRow}>
             <Text style={s.tCellLabel}>Advance Paid</Text>
             <Text style={s.tCellValue}>- {formatCurrency(totalAdvance)}</Text>
           </View>
           {companyThrough > 0 && (
             <View style={s.tRow}>
-              <Text style={s.tCellLabel}>Paid Through Company (LC)</Text>
-              <Text style={s.tCellValue}>- {formatCurrency(companyThrough)}</Text>
+              <Text style={s.tCellLabel}>LC / Other Payment (Paid — settled separately)</Text>
+              <Text style={s.tCellValue}>{formatCurrency(companyThrough)}</Text>
             </View>
           )}
         </View>
@@ -718,7 +718,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
                 LC Payment {invoice.lcNumber ? `(No: ${invoice.lcNumber}${invoice.lcOpenType ? `, Type: ${invoice.lcOpenType === 'company' ? 'Company' : 'Personal'}` : ''})` : ''}
               </Text>
               <Text style={[s.milestoneStatus, { color: invoice.isLcComplete ? GREEN : AMBER }]}>
-                {invoice.isLcComplete ? 'Completed' : 'Pending'}
+                {invoice.isLcComplete ? 'Paid' : 'Pending'}
               </Text>
             </View>
           </View>
@@ -727,7 +727,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <View>
               <Text style={[s.milestoneLabel, { color: invoice.isTtComplete ? GREEN : AMBER }]}>Other Payment</Text>
               <Text style={[s.milestoneStatus, { color: invoice.isTtComplete ? GREEN : AMBER }]}>
-                {invoice.isTtComplete ? 'Completed' : 'Pending'}
+                {invoice.isTtComplete ? 'Paid' : 'Pending'}
               </Text>
             </View>
           </View>

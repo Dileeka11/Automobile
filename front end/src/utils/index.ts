@@ -36,9 +36,9 @@ export interface SettlementInput {
 }
 
 export interface Settlement {
-  /** Cash the customer put in: advance + installments (+ LC/Other when opened personally) */
+  /** Cash the customer actually put in: advance + installments */
   advance: number;
-  /** LC + Other Payment settled by the company when the LC is opened through the company */
+  /** LC + Other Payment settled internally (via the LC facility) — NOT the customer's cash */
   companyThrough: number;
   /** Everything already settled — advance + companyThrough */
   settled: number;
@@ -46,24 +46,27 @@ export interface Settlement {
 }
 
 /**
- * When the LC is opened through the company, the LC and Other Payment amounts are
- * still deducted from the total, but they are reported separately instead of being
- * rolled into the customer's advance.
+ * The customer's balance is driven purely by the cash they paid (advance +
+ * installments). LC and Other Payment amounts are settled internally through the
+ * LC facility, so — even when ticked/added — they must NOT be deducted from the
+ * customer's balance. They are reported separately (companyThrough) as amounts
+ * already settled, never rolled into the customer's advance.
  */
 export const invoiceSettlement = (i: SettlementInput): Settlement => {
-  const viaCompany = i.lcOpenType === 'company';
   const lc = i.isLcComplete ? i.lcAmount || 0 : 0;
   const tt = i.isTtComplete ? i.ttAmount || 0 : 0;
 
-  const companyThrough = viaCompany ? lc + tt : 0;
-  const advance = (i.advanceAmount || 0) + (i.installments || 0) + (viaCompany ? 0 : lc + tt);
+  // LC + Other Payment: settled internally, reported separately, never deducted from the balance.
+  const companyThrough = lc + tt;
+  // Only the customer's own cash reduces the balance.
+  const advance = (i.advanceAmount || 0) + (i.installments || 0);
   const settled = advance + companyThrough;
 
   return {
     advance,
     companyThrough,
     settled,
-    balance: Math.max(0, (i.total || 0) - settled),
+    balance: Math.max(0, (i.total || 0) - advance),
   };
 };
 
