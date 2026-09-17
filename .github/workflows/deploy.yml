@@ -1,0 +1,58 @@
+name: Deploy to dandnautomart.com (FTP)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # allows manual run from the Actions tab
+
+concurrency:
+  group: ftp-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install & build frontend
+        working-directory: "front end"
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemble deploy folder
+        run: |
+          rm -rf deploy
+          mkdir -p deploy
+          # Frontend build output -> web root
+          cp -r "front end/dist/." deploy/
+          # PHP backend -> /backend
+          cp -r backend deploy/backend
+          # Keep production DB config & user uploads on the server (never overwrite/delete)
+          rm -f  deploy/backend/config/db.php
+          rm -rf deploy/backend/uploads
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps        # cPanel supports FTPS (secure). Change to "ftp" only if FTPS fails.
+          port: 21
+          local-dir: ./deploy/
+          server-dir: ./         # FTP account is jailed to sites/dandnautomart.com, so its home = web root
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            backend/config/db.php
+            backend/uploads/**
