@@ -35,6 +35,7 @@ const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'service
 
 // Display labels that shouldn't just be the humanised field name
 const fieldLabels: Partial<Record<(typeof numericFields)[number], string>> = {
+  cifValue: 'CIF Value',
   ttAmount: 'Other Payment',
 };
 
@@ -58,15 +59,14 @@ export default function Quotations() {
   const filteredVehicles = useMemo(() => vehicleModels.filter((v) => v.makeModelId === selectedMake), [vehicleModels, selectedMake]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedVehicleId), [vehicleModels, selectedVehicleId]);
 
-  // Watch all financial fields for live total
-  const watchedCif = useWatch({ control, name: 'cifValue' }) || 0;
+  // Watch the financial fields that make up the live total (CIF value is display only)
   const watchedLc = useWatch({ control, name: 'lcAmount' }) || 0;
   const watchedTt = useWatch({ control, name: 'ttAmount' }) || 0;
   const watchedTax = useWatch({ control, name: 'taxAmount' }) || 0;
   const watchedService = useWatch({ control, name: 'serviceCharge' }) || 0;
   const watchedClearing = useWatch({ control, name: 'clearingCharge' }) || 0;
   const watchedDmi = useWatch({ control, name: 'dmiCharge' }) || 0;
-  const liveTotal = Number(watchedCif) + Number(watchedLc) + Number(watchedTt) + Number(watchedTax) + Number(watchedService) + Number(watchedClearing) + Number(watchedDmi);
+  const liveTotal = Number(watchedLc) + Number(watchedTt) + Number(watchedTax) + Number(watchedService) + Number(watchedClearing) + Number(watchedDmi);
 
   // Check for CRM prefill
   useEffect(() => {
@@ -254,6 +254,7 @@ export default function Quotations() {
                 <div key={f}>
                   <label className="label">{fieldLabels[f] ?? f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
                   <input type="number" step="0.01" {...register(f)} className="input" />
+                  {f === 'cifValue' && <p className="text-[11px] text-slate-400 mt-1">Display only — not added to the total</p>}
                   {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
                 </div>
               ))}

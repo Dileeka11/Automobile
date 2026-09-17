@@ -325,7 +325,6 @@ function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
 
 export function QuotationDoc({ quotation, vehicle, make }: Props) {
   const rows: [string, number][] = [
-    ['CIF Value', quotation.cifValue || 0],
     ['LC Amount', quotation.lcAmount || 0],
     ['Other Payment', quotation.ttAmount || 0],
     ['Tax Amount', quotation.taxAmount || 0],
@@ -399,6 +398,11 @@ export function QuotationDoc({ quotation, vehicle, make }: Props) {
           <View style={s.tHead}>
             <Text style={[s.tHeadCell, s.tCellLabel]}>Description</Text>
             <Text style={[s.tHeadCell, s.tCellValue]}>Amount (LKR)</Text>
+          </View>
+          {/* CIF value is informational only and is not part of the total */}
+          <View style={s.tRow}>
+            <Text style={[s.tCellLabel, { color: '#8a94a6' }]}>CIF Value (reference only)</Text>
+            <Text style={[s.tCellValue, { color: '#8a94a6' }]}>{formatCurrency(quotation.cifValue || 0)}</Text>
           </View>
           {rows.map(([label, value], idx) => (
             <View key={label} style={[s.tRow, idx % 2 === 1 ? s.tRowAlt : {}]}>

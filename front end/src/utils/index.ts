@@ -20,8 +20,9 @@ export const formatDateTime = (iso: string): string =>
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
+/** CIF value is shown for reference only — it is never part of the total cost. */
 export const quotationTotal = (q: Quotation): number =>
-  (q.cifValue || 0) + (q.lcAmount || 0) + (q.ttAmount || 0) + (q.taxAmount || 0) + (q.serviceCharge || 0) + (q.clearingCharge || 0) + (q.dmiCharge || 0);
+  (q.lcAmount || 0) + (q.ttAmount || 0) + (q.taxAmount || 0) + (q.serviceCharge || 0) + (q.clearingCharge || 0) + (q.dmiCharge || 0);
 
 export interface SettlementInput {
   total: number;

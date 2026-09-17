@@ -87,7 +87,8 @@ switch ($method) {
                 $stmt->execute([$vehicleId]);
                 if ($stmt->fetchColumn() == 0) {
                     $invId = 'INV' . strtoupper(substr(uniqid(), -5));
-                    $totalCost = $qInfo['cif_value'] + $qInfo['tax_amount'] + $qInfo['clearing_amount'] + $qInfo['service_charge'];
+                    // CIF value is display only, never part of the total
+                    $totalCost = $qInfo['tax_amount'] + $qInfo['clearing_amount'] + $qInfo['service_charge'];
                     // Advance payment typically 40% or 50%, let's make it 50% or full estimated minus service charge
                     $advanceAmount = $totalCost * 0.5; 
                     $dueDate = date('Y-m-d', strtotime('+3 days'));

@@ -28,9 +28,8 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
     $payStmt->execute([$invoiceId]);
     $paymentsSum = (float)$payStmt->fetchColumn();
 
-    // 3. Compute quotation total
-    $quotationTotal = (float)$row['cif_value'] 
-                    + (float)$row['lc_amount'] 
+    // 3. Compute quotation total (CIF value is display only, never part of the total)
+    $quotationTotal = (float)$row['lc_amount'] 
                     + (float)$row['tt_amount'] 
                     + (float)$row['tax_amount'] 
                     + (float)$row['service_charge'] 
