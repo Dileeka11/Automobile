@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS `lease_invoices` (
   `for_sale`        VARCHAR(191)   DEFAULT NULL,
   `make`            VARCHAR(100)   DEFAULT NULL,
   `model`           VARCHAR(150)   DEFAULT NULL,
+  `country_of_origin` VARCHAR(100) DEFAULT NULL,
   `yom`             VARCHAR(20)    DEFAULT NULL,
   `engine_capacity` VARCHAR(50)    DEFAULT NULL,
   `chassis_number`  VARCHAR(100)   DEFAULT NULL,
@@ -28,3 +29,6 @@ CREATE TABLE IF NOT EXISTS `lease_invoices` (
   CONSTRAINT `lease_invoices_ibfk_1`
     FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- The table already existed before Country of Origin was added? Run this one line instead:
+-- ALTER TABLE `lease_invoices` ADD COLUMN `country_of_origin` VARCHAR(100) DEFAULT NULL AFTER `model`;

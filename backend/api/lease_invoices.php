@@ -13,6 +13,7 @@ $SELECT = "SELECT
         for_sale        AS forSale,
         make,
         model,
+        country_of_origin AS countryOfOrigin,
         yom,
         engine_capacity AS engineCapacity,
         chassis_number  AS chassisNumber,
@@ -71,6 +72,7 @@ switch ($method) {
             'for_sale'        => trim($data['forSale'] ?? ''),
             'make'            => trim($data['make'] ?? ''),
             'model'           => trim($data['model'] ?? ''),
+            'country_of_origin' => trim($data['countryOfOrigin'] ?? ''),
             'yom'             => trim((string)($data['yom'] ?? '')),
             'engine_capacity' => trim($data['engineCapacity'] ?? ''),
             'chassis_number'  => trim($data['chassisNumber'] ?? ''),
@@ -85,11 +87,11 @@ switch ($method) {
         try {
             $sql = "INSERT INTO lease_invoices
                 (invoice_id, invoice_date, invoice_no, customer_name, address, tel_no, bank_name, bank_branch,
-                 for_sale, make, model, yom, engine_capacity, chassis_number, engine_number,
+                 for_sale, make, model, country_of_origin, yom, engine_capacity, chassis_number, engine_number,
                  advance, lease_amount, balance, total_cost, director_name)
                 VALUES
                 (:invoice_id, :invoice_date, :invoice_no, :customer_name, :address, :tel_no, :bank_name, :bank_branch,
-                 :for_sale, :make, :model, :yom, :engine_capacity, :chassis_number, :engine_number,
+                 :for_sale, :make, :model, :country_of_origin, :yom, :engine_capacity, :chassis_number, :engine_number,
                  :advance, :lease_amount, :balance, :total_cost, :director_name)
                 ON DUPLICATE KEY UPDATE
                     invoice_date = VALUES(invoice_date),
@@ -102,6 +104,7 @@ switch ($method) {
                     for_sale = VALUES(for_sale),
                     make = VALUES(make),
                     model = VALUES(model),
+                    country_of_origin = VALUES(country_of_origin),
                     yom = VALUES(yom),
                     engine_capacity = VALUES(engine_capacity),
                     chassis_number = VALUES(chassis_number),

@@ -80,6 +80,7 @@ export default function LeaseInvoiceModal({
       forSale: quotation.name,
       make: make.name,
       model: vehicle.name,
+      countryOfOrigin: '',
       yom: String(vehicle.year ?? ''),
       engineCapacity: vehicle.engineCapacity || '',
       chassisNumber: '',
@@ -135,6 +136,7 @@ export default function LeaseInvoiceModal({
               forSale: saved.forSale ?? next.forSale,
               make: saved.make ?? next.make,
               model: saved.model ?? next.model,
+              countryOfOrigin: saved.countryOfOrigin ?? '',
               yom: saved.yom ?? next.yom,
               engineCapacity: saved.engineCapacity ?? next.engineCapacity,
               chassisNumber: saved.chassisNumber ?? '',
@@ -331,6 +333,14 @@ export default function LeaseInvoiceModal({
                     />
                   </Field>
                 </div>
+                <Field label="Country of Origin">
+                  <input
+                    className="input text-xs"
+                    placeholder="e.g. JAPAN"
+                    value={form.countryOfOrigin}
+                    onChange={(e) => set('countryOfOrigin', e.target.value)}
+                  />
+                </Field>
                 <div className="grid grid-cols-2 gap-2">
                   <Field label="YOM">
                     <input

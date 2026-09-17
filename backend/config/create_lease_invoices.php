@@ -14,6 +14,7 @@ try {
         for_sale VARCHAR(191) NULL,
         make VARCHAR(100) NULL,
         model VARCHAR(150) NULL,
+        country_of_origin VARCHAR(100) NULL,
         yom VARCHAR(20) NULL,
         engine_capacity VARCHAR(50) NULL,
         chassis_number VARCHAR(100) NULL,
@@ -30,6 +31,13 @@ try {
 
     $pdo->exec($sql);
     echo "lease_invoices table created successfully.\n";
+
+    // Older installs were created before country_of_origin existed
+    $col = $pdo->query("SHOW COLUMNS FROM lease_invoices LIKE 'country_of_origin'")->fetch();
+    if (!$col) {
+        $pdo->exec("ALTER TABLE lease_invoices ADD COLUMN country_of_origin VARCHAR(100) NULL AFTER model");
+        echo "Added country_of_origin column.\n";
+    }
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }

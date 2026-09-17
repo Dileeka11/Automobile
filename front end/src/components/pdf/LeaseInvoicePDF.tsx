@@ -24,6 +24,7 @@ export interface LeaseInvoiceData {
   forSale: string;
   make: string;
   model: string;
+  countryOfOrigin: string;
   yom: string;
   engineCapacity: string;
   chassisNumber: string;
@@ -65,7 +66,7 @@ const s = StyleSheet.create({
   /* ── Header field lines ── */
   fieldRow: {
     flexDirection: 'row',
-    marginBottom: 11,
+    marginBottom: 9,
   },
   fieldLabel: {
     fontFamily: 'Times-Roman',
@@ -137,7 +138,7 @@ const s = StyleSheet.create({
   sigArea: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 22,
+    marginTop: 16,
   },
   sigLeft: {
     width: '52%',
@@ -176,7 +177,7 @@ const s = StyleSheet.create({
   },
   sigRole: {
     fontSize: 10.5,
-    marginTop: 14,
+    marginTop: 10,
   },
   footerRow: {
     position: 'absolute',
@@ -240,6 +241,7 @@ export function LeaseInvoiceDoc({ data }: { data: LeaseInvoiceData }) {
   const rows: [string, string][] = [
     ['MAKE', data.make],
     ['MODEL', data.model],
+    ['COUNTRY OF ORIGIN', data.countryOfOrigin],
     ['YOM', data.yom],
     ['ENGINE CAPACITY', data.engineCapacity],
     ['CHASSIS NUMBER', data.chassisNumber],
