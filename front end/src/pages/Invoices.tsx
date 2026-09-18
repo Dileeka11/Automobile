@@ -648,10 +648,17 @@ export default function Invoices() {
               <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
                 {selectedQuotation && (isLcChecked || isTtChecked || payments.length > 0) && (
                   <div className="space-y-1 text-xs text-amber-700 pb-2 border-b border-amber-200">
-                    <div className="flex justify-between">
-                      <span>Advance</span>
-                      <span className="font-medium">{formatCurrency(Number(advance || 0))}</span>
-                    </div>
+                    {settlement.advanceCounted ? (
+                      <div className="flex justify-between">
+                        <span>Advance</span>
+                        <span className="font-medium">{formatCurrency(Number(advance || 0))}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-slate-400">
+                        <span>Advance <span className="text-[10px]">(agreed — paid through the installments below, not added)</span></span>
+                        <span className="font-medium">{formatCurrency(Number(advance || 0))}</span>
+                      </div>
+                    )}
                     {payments.map((p) => (
                       <div key={p.id} className="flex justify-between">
                         <span>+ Installment <span className="font-mono text-amber-600">({formatDate(p.paymentDate)})</span></span>

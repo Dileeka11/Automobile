@@ -37,8 +37,10 @@ export interface SettlementInput {
 }
 
 export interface Settlement {
-  /** Cash the customer actually put in: advance + installments */
+  /** Cash the customer actually put in: the installments, or the typed advance when there are none */
   advance: number;
+  /** False once installments exist — the typed advance is then only the agreed figure, not extra cash */
+  advanceCounted: boolean;
   /** LC + Other Payment settled internally (via the LC facility) — NOT the customer's cash */
   companyThrough: number;
   /** Everything already settled — advance + companyThrough */
@@ -47,8 +49,10 @@ export interface Settlement {
 }
 
 /**
- * The customer's balance is driven purely by the cash they paid (advance +
- * installments). LC and Other Payment amounts are settled internally through the
+ * The customer's balance is driven purely by the cash they paid. Installments are
+ * the payments made against the advance, so once any are recorded only they count —
+ * the advance typed on the invoice is not added on top of them. With no installments
+ * the typed advance is the amount paid. LC and Other Payment amounts are settled internally through the
  * LC facility, so — even when ticked/added — they must NOT be deducted from the
  * customer's balance. They are reported separately (companyThrough) as amounts
  * already settled, never rolled into the customer's advance.
@@ -60,11 +64,14 @@ export const invoiceSettlement = (i: SettlementInput): Settlement => {
   // LC + Other Payment: settled internally, reported separately, never deducted from the balance.
   const companyThrough = lc + tt;
   // Only the customer's own cash reduces the balance.
-  const advance = (i.advanceAmount || 0) + (i.installments || 0);
+  const installments = i.installments || 0;
+  const advanceCounted = installments <= 0;
+  const advance = advanceCounted ? i.advanceAmount || 0 : installments;
   const settled = advance + companyThrough;
 
   return {
     advance,
+    advanceCounted,
     companyThrough,
     settled,
     balance: Math.max(0, (i.total || 0) - advance),

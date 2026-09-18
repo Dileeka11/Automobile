@@ -36,16 +36,13 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
                     + (float)$row['clearing_amount'] 
                     + (float)$row['dmi_charge'];
 
+    // Installments are the payments made against the advance: once any exist only they
+    // count, otherwise the typed advance is the amount paid. LC / Other Payment are settled
+    // internally and do not reduce the customer's balance (matches the invoice screen).
     $advance = (float)$row['advance_amount'];
-    $lcDeduction = $row['is_lc_complete'] ? (float)$row['lc_amount'] : 0.00;
-    
-    // TT Deduction: if checked, deduct remaining tt_amount after paymentsSum; else deduct 0
-    $ttDeduction = 0.00;
-    if ($row['is_tt_complete']) {
-        $ttDeduction = max(0.00, (float)$row['tt_amount'] - $paymentsSum);
-    }
+    $paid = $paymentsSum > 0 ? $paymentsSum : $advance;
 
-    $newBalance = max(0.00, $quotationTotal - $advance - $lcDeduction - $ttDeduction);
+    $newBalance = max(0.00, $quotationTotal - $paid);
 
     // Determine status
     $status = 'PENDING';
@@ -96,10 +93,6 @@ switch ($method) {
             $stmt->execute([$invoiceId, $amount, $paymentDate, $notes]);
             $paymentId = $pdo->lastInsertId();
 
-            // Update advance_amount in invoices table
-            $stmtUp = $pdo->prepare("UPDATE invoices SET advance_amount = COALESCE(advance_amount, 0.00) + ? WHERE id = ?");
-            $stmtUp->execute([$amount, $invoiceId]);
-
             // Recalculate using the shared function
             recalculateInvoiceBalance($pdo, $invoiceId);
 
@@ -147,10 +140,6 @@ switch ($method) {
             // Delete payment record
             $stmt = $pdo->prepare("DELETE FROM invoice_payments WHERE id = ?");
             $stmt->execute([$id]);
-
-            // Update advance_amount in invoices table
-            $stmtUp = $pdo->prepare("UPDATE invoices SET advance_amount = GREATEST(0.00, COALESCE(advance_amount, 0.00) - ?) WHERE id = ?");
-            $stmtUp->execute([$amount, $invoiceId]);
 
             // Recalculate using the shared function
             recalculateInvoiceBalance($pdo, $invoiceId);

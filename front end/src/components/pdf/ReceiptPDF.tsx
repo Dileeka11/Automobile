@@ -170,10 +170,17 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
           </View>
           <View style={s.divider} />
 
-          <View style={s.row}>
-            <Text style={s.cardLabel}>Advance:</Text>
-            <Text style={s.cardValue}>{formatCurrency(advanceAmount)}</Text>
-          </View>
+          {settlement.advanceCounted ? (
+            <View style={s.row}>
+              <Text style={s.cardLabel}>Advance:</Text>
+              <Text style={s.cardValue}>{formatCurrency(advanceAmount)}</Text>
+            </View>
+          ) : (
+            <View style={s.row}>
+              <Text style={[s.cardLabel, { color: GRAY_TEXT }]}>Advance (agreed - paid through installments, not added):</Text>
+              <Text style={[s.cardValue, { color: GRAY_TEXT }]}>{formatCurrency(advanceAmount)}</Text>
+            </View>
+          )}
           {allPayments.map((p) => (
             <View key={p.id} style={s.row}>
               <Text style={s.cardLabel}>+ Installment ({formatDate(p.paymentDate)}):</Text>
