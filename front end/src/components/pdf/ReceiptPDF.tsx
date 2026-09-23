@@ -194,7 +194,7 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
           </View>
           {settlement.companyThrough > 0 && (
             <View style={s.row}>
-              <Text style={s.cardLabel}>LC / Other (Paid — settled separately):</Text>
+              <Text style={s.cardLabel}>LC / Other (Paid — settled internally):</Text>
               <Text style={s.cardValue}>{formatCurrency(settlement.companyThrough)}</Text>
             </View>
           )}

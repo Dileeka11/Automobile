@@ -670,7 +670,7 @@ export default function Invoices() {
                       <span>{formatCurrency(totalAdvance)}</span>
                     </div>
 
-                    {/* LC / Other Payment: settled internally, shown as Paid — NOT deducted from the balance */}
+                    {/* LC / Other Payment: settled internally, shown as Paid and deducted from the balance */}
                     {settlement.companyThrough > 0 && (
                       <div className="pt-2 mt-1 border-t border-amber-200 space-y-1 text-indigo-700">
                         {isLcChecked && (
@@ -686,7 +686,7 @@ export default function Invoices() {
                           </div>
                         )}
                         <div className="flex justify-between font-semibold border-t border-indigo-200 pt-1">
-                          <span>Settled Internally (Not in Balance)</span>
+                          <span>Settled Internally</span>
                           <span>{formatCurrency(settlement.companyThrough)}</span>
                         </div>
                       </div>

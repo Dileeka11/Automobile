@@ -41,29 +41,31 @@ export interface Settlement {
   advance: number;
   /** False once installments exist — the typed advance is then only the agreed figure, not extra cash */
   advanceCounted: boolean;
-  /** LC + Other Payment settled internally (via the LC facility) — NOT the customer's cash */
+  /** LC + Other Payment settled internally (via the LC facility) — not the customer's cash */
   companyThrough: number;
   /** Everything already settled — advance + companyThrough */
   settled: number;
+  /** total - settled */
   balance: number;
 }
 
 /**
- * The customer's balance is driven purely by the cash they paid. Installments are
- * the payments made against the advance, so once any are recorded only they count —
- * the advance typed on the invoice is not added on top of them. With no installments
- * the typed advance is the amount paid. LC and Other Payment amounts are settled internally through the
- * LC facility, so — even when ticked/added — they must NOT be deducted from the
- * customer's balance. They are reported separately (companyThrough) as amounts
- * already settled, never rolled into the customer's advance.
+ * Installments are the payments made against the advance, so once any are recorded
+ * only they count — the advance typed on the invoice is not added on top of them.
+ * With no installments the typed advance is the amount paid.
+ *
+ * LC and Other Payment, once ticked, are settled internally through the LC facility.
+ * They are reported separately (companyThrough) rather than rolled into the customer's
+ * advance, but they are still settled money, so the balance is what is left after both:
+ *   balance = total - (advance + companyThrough)
  */
 export const invoiceSettlement = (i: SettlementInput): Settlement => {
   const lc = i.isLcComplete ? i.lcAmount || 0 : 0;
   const tt = i.isTtComplete ? i.ttAmount || 0 : 0;
 
-  // LC + Other Payment: settled internally, reported separately, never deducted from the balance.
+  // LC + Other Payment: settled internally and reported separately, but still deducted.
   const companyThrough = lc + tt;
-  // Only the customer's own cash reduces the balance.
+  // The customer's own cash: installments when present, otherwise the typed advance.
   const installments = i.installments || 0;
   const advanceCounted = installments <= 0;
   const advance = advanceCounted ? i.advanceAmount || 0 : installments;
@@ -74,7 +76,7 @@ export const invoiceSettlement = (i: SettlementInput): Settlement => {
     advanceCounted,
     companyThrough,
     settled,
-    balance: Math.max(0, (i.total || 0) - advance),
+    balance: Math.max(0, (i.total || 0) - settled),
   };
 };
 

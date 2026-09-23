@@ -37,12 +37,14 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
                     + (float)$row['dmi_charge'];
 
     // Installments are the payments made against the advance: once any exist only they
-    // count, otherwise the typed advance is the amount paid. LC / Other Payment are settled
-    // internally and do not reduce the customer's balance (matches the invoice screen).
+    // count, otherwise the typed advance is the amount paid. LC / Other Payment, once
+    // ticked, are settled internally and are deducted too (matches the invoice screen).
     $advance = (float)$row['advance_amount'];
     $paid = $paymentsSum > 0 ? $paymentsSum : $advance;
+    $companyThrough = ($row['is_lc_complete'] ? (float)$row['lc_amount'] : 0.00)
+                    + ($row['is_tt_complete'] ? (float)$row['tt_amount'] : 0.00);
 
-    $newBalance = max(0.00, $quotationTotal - $paid);
+    $newBalance = max(0.00, $quotationTotal - $paid - $companyThrough);
 
     // Determine status
     $status = 'PENDING';
