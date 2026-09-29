@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/invoice_pricing.php';
 
 function recalculateInvoiceBalance($pdo, $invoiceId) {
     // 1. Fetch invoice and quotation details

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/invoice_pricing.php';
 
 // Save an uploaded clearing document and return its stored DB path (or null).
 function saveInvoiceUpload($fileKey, $prefix, $id) {
@@ -57,8 +58,8 @@ function formatInvoiceRow($pdo, $row) {
         'isLcComplete' => (bool)$row['is_lc_complete'],
         'lcNumber' => $row['lc_number'],
         'lcOpenType' => $row['lc_open_type'],
-        'sellingPrice' => $row['selling_price'] !== null ? (float)$row['selling_price'] : null,
-        'vatPercent' => $row['vat_percent'] !== null ? (float)$row['vat_percent'] : null,
+        'sellingPrice' => isset($row['selling_price']) ? (float)$row['selling_price'] : null,
+        'vatPercent' => isset($row['vat_percent']) ? (float)$row['vat_percent'] : null,
         'isTtComplete' => (bool)$row['is_tt_complete'],
         'status' => strtolower($row['status']),
         'lcCopyPath' => $row['lc_copy_path'],

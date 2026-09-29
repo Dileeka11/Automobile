@@ -126,17 +126,27 @@ export const useDataStore = create<DataState>((set) => ({
 
   fetchData: async () => {
     set({ loading: true });
-    try {
-      const makeModels = await apiFetch('/backend/api/make-models.php');
-      const vehicleModels = await apiFetch('/backend/api/vehicle-models.php');
-      const quotations = await apiFetch('/backend/api/quotations.php');
-      const invoices = await apiFetch('/backend/api/invoices.php');
-      const cashbookExpenses = await apiFetch('/backend/api/cashbook.php').catch(() => []);
-      set({ makeModels, vehicleModels, quotations, invoices, cashbookExpenses, loading: false });
-    } catch (e) {
-      console.error(e);
-      set({ loading: false });
-    }
+    // Load each list independently so one failing endpoint doesn't hide all the others
+    const load = (url: string) =>
+      apiFetch(url).catch((e) => {
+        console.error(`${url}:`, e);
+        return undefined;
+      });
+    const [makeModels, vehicleModels, quotations, invoices, cashbookExpenses] = await Promise.all([
+      load('/backend/api/make-models.php'),
+      load('/backend/api/vehicle-models.php'),
+      load('/backend/api/quotations.php'),
+      load('/backend/api/invoices.php'),
+      load('/backend/api/cashbook.php'),
+    ]);
+    set((s) => ({
+      makeModels: makeModels ?? s.makeModels,
+      vehicleModels: vehicleModels ?? s.vehicleModels,
+      quotations: quotations ?? s.quotations,
+      invoices: invoices ?? s.invoices,
+      cashbookExpenses: cashbookExpenses ?? s.cashbookExpenses,
+      loading: false,
+    }));
   },
 
   fetchDashboard: async () => {
