@@ -57,6 +57,8 @@ export default function Cashbook() {
   const [oneOff, setOneOff] = useState<string | null>(null);
   // The form records either an expense or cash revenue added by hand
   const [entryMode, setEntryMode] = useState<EntryMode>('expense');
+  // Which list the ledger card shows
+  const [ledgerView, setLedgerView] = useState<EntryMode>('expense');
 
   const loadCategories = async () => {
     try {
@@ -218,6 +220,7 @@ export default function Cashbook() {
 
   const switchMode = (mode: EntryMode) => {
     setEntryMode(mode);
+    setLedgerView(mode);
     setOneOff(null);
     setValue('expenseType', defaultCategory(mode));
   };
@@ -440,18 +443,40 @@ export default function Cashbook() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
-        {/* Left Columns - Tables */}
-        <div className="lg:col-span-2 flex flex-col min-h-0 space-y-4">
-          {/* General Expenses Table */}
+        {/* Left Columns - Ledger (expenses / revenues, switched by the header toggle) */}
+        <div className="lg:col-span-2 flex flex-col min-h-0">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
+            <div className="p-4 border-b border-slate-100 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 flex-shrink-0">
               <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                <Landmark className="w-4 h-4 text-brand-600" />
-                Expenses Ledger
+                {ledgerView === 'revenue' ? (
+                  <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <Landmark className="w-4 h-4 text-brand-600" />
+                )}
+                {ledgerView === 'revenue' ? 'Revenues Ledger' : 'Expenses Ledger'}
+                <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
+                  {ledgerView === 'revenue' ? revenueRows.length : filteredExpenses.length} Records
+                </span>
               </h4>
-              <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                {filteredExpenses.length} Records
-              </span>
+
+              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setLedgerView('expense')}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${ledgerView === 'expense' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <ArrowDownRight className="w-3.5 h-3.5" /> Expenses
+                  <span className="font-mono">{formatCurrency(totalOutflow)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLedgerView('revenue')}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${ledgerView === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Revenues
+                  <span className="font-mono">{formatCurrency(totalInflow)}</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
@@ -460,70 +485,56 @@ export default function Cashbook() {
                   <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-brand-500" />
                   Loading ledger...
                 </div>
-              ) : filteredExpenses.length === 0 ? (
-                <EmptyState title={fromDate || toDate ? 'No expenses in the selected period' : 'No expenses recorded yet'} />
+              ) : ledgerView === 'expense' ? (
+                filteredExpenses.length === 0 ? (
+                  <EmptyState title={fromDate || toDate ? 'No expenses in the selected period' : 'No expenses recorded yet'} />
+                ) : (
+                  <table className="table min-w-full relative">
+                    <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
+                      <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th className="text-right">Amount</th>
+                        <th className="w-16 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredExpenses.map((exp) => (
+                        <tr key={exp.id}>
+                          <td className="text-slate-600 text-xs whitespace-nowrap">{formatDate(exp.dateIncurred)}</td>
+                          <td>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100 whitespace-nowrap">
+                              {exp.expenseType}
+                            </span>
+                          </td>
+                          <td className="text-xs text-slate-500 max-w-xs truncate" title={exp.description}>
+                            {exp.description || '—'}
+                          </td>
+                          <td className="text-right font-semibold font-mono text-rose-600 text-xs whitespace-nowrap">
+                            {formatCurrency(exp.amount)}
+                          </td>
+                          <td className="text-center">
+                            <button
+                              onClick={() => handleDeleteExpense(exp.id)}
+                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              ) : revenueRows.length === 0 ? (
+                <EmptyState title={fromDate || toDate ? 'No revenues in the selected period' : 'No revenues yet'} />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                     <tr>
                       <th>Date</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th className="text-right">Amount</th>
-                      <th className="w-16 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredExpenses.map((exp) => (
-                      <tr key={exp.id}>
-                        <td className="text-slate-600 text-xs">{formatDate(exp.dateIncurred)}</td>
-                        <td>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">
-                            {exp.expenseType}
-                          </span>
-                        </td>
-                        <td className="text-xs text-slate-500 max-w-xs truncate" title={exp.description}>
-                          {exp.description || '—'}
-                        </td>
-                        <td className="text-right font-semibold font-mono text-rose-600 text-xs">
-                          {formatCurrency(exp.amount)}
-                        </td>
-                        <td className="text-center">
-                          <button
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-                            title="Delete Record"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-
-          {/* Revenue Inflow Items Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
-              <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
-                <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                Service Charge & Profit Revenues
-              </h4>
-              <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                {revenueRows.length} Records
-              </span>
-            </div>
-
-            <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
-              {revenueRows.length === 0 ? (
-                <EmptyState title={fromDate || toDate ? 'No fully-paid revenues in the selected period' : 'No fully-paid revenues yet'} />
-              ) : (
-                <table className="table min-w-full relative">
-                  <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
-                    <tr>
                       <th>Invoice / Ref</th>
                       <th>Customer / Category</th>
                       <th>Vehicle / Description</th>
@@ -535,26 +546,22 @@ export default function Cashbook() {
                   <tbody>
                     {revenueRows.map((item) => (
                       <tr key={item.key}>
-                        <td className="font-semibold text-brand-600 text-xs">
-                          {item.ref}
-                          {item.manualId !== null && (
-                            <div className="text-[10px] font-normal text-slate-400">{formatDate(item.date)}</div>
-                          )}
-                        </td>
+                        <td className="text-slate-600 text-xs whitespace-nowrap">{formatDate(item.date)}</td>
+                        <td className="font-semibold text-brand-600 text-xs whitespace-nowrap">{item.ref}</td>
                         <td className="text-xs text-slate-700 font-medium">{item.name}</td>
                         <td className="text-[11px] text-slate-500 max-w-xs truncate" title={item.details}>{item.details}</td>
                         <td>
                           {item.manualId === null ? (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 whitespace-nowrap">
                               Fully Covered
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-100">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-100 whitespace-nowrap">
                               Cash Received
                             </span>
                           )}
                         </td>
-                        <td className="text-right font-semibold font-mono text-emerald-600 text-xs">
+                        <td className="text-right font-semibold font-mono text-emerald-600 text-xs whitespace-nowrap">
                           {formatCurrency(item.amount)}
                           <div className="text-[10px] font-sans font-normal text-slate-400">{item.note}</div>
                         </td>
