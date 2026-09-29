@@ -8,6 +8,9 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
             i.advance_amount, 
             i.is_lc_complete, 
             i.is_tt_complete,
+            i.lc_open_type,
+            i.selling_price,
+            i.vat_percent,
             q.cif_value,
             q.lc_amount,
             q.tt_amount,
@@ -36,6 +39,13 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
                     + (float)$row['clearing_amount'] 
                     + (float)$row['dmi_charge'];
 
+    // Company LC with a selling price: the customer owes selling price + VAT instead
+    // (matches invoicePricing() on the frontend).
+    $sellingPrice = (float)$row['selling_price'];
+    if ($row['lc_open_type'] === 'company' && $sellingPrice > 0) {
+        $quotationTotal = $sellingPrice + round($sellingPrice * (float)$row['vat_percent']) / 100;
+    }
+
     // Installments are the payments made against the advance: once any exist only they
     // count, otherwise the typed advance is the amount paid. LC / Other Payment, once
     // ticked, are settled internally and are deducted too (matches the invoice screen).
@@ -58,6 +68,8 @@ function recalculateInvoiceBalance($pdo, $invoiceId) {
     $upStmt = $pdo->prepare("UPDATE invoices SET balance = ?, status = ? WHERE id = ?");
     $upStmt->execute([$newBalance, $status, $invoiceId]);
 }
+
+ensureInvoicePricingColumns($pdo);
 
 $method = $_SERVER['REQUEST_METHOD'];
 

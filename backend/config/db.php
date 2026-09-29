@@ -44,3 +44,14 @@ function sendJson($data, $statusCode = 200) {
 function sendError($message, $statusCode = 400) {
     sendJson(["error" => $message], $statusCode);
 }
+
+// Company-LC pricing columns (selling price + VAT). Added on demand so a deploy
+// without running the migration script still works.
+function ensureInvoicePricingColumns($pdo) {
+    $cols = ['selling_price' => 'DECIMAL(15,2) NULL', 'vat_percent' => 'DECIMAL(5,2) NULL'];
+    foreach ($cols as $col => $def) {
+        if (!$pdo->query("SHOW COLUMNS FROM invoices LIKE '$col'")->fetch()) {
+            $pdo->exec("ALTER TABLE invoices ADD COLUMN $col $def");
+        }
+    }
+}

@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { FileText, Receipt, Wallet, Clock, TrendingUp } from 'lucide-react';
 import { useDataStore } from '@/store';
-import { formatCurrency, formatDate } from '@/utils';
+import { formatCurrency, formatDate, cashbookRevenue } from '@/utils';
 import StatusBadge from '@/components/ui/Badge';
 
 const COLORS = ['#4169E1', '#10b981', '#f59e0b', '#98AFC7', '#647c98', '#6389e8', '#ef4444'];
@@ -31,7 +31,7 @@ export default function Dashboard() {
     const balanceVal = Number(i.balance || 0);
     if (balanceVal <= 0) {
       const q = quotations.find((q) => q.id === i.quotationId);
-      return s + Number(q?.serviceCharge || 0);
+      return s + cashbookRevenue(i, q);
     }
     return s;
   }, 0);

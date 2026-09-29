@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
 import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X, Undo2 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/utils';
+import { formatCurrency, formatDate, cashbookRevenue } from '@/utils';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCashbookReportPDF } from '@/components/pdf/CashbookReportPDF';
 
@@ -64,7 +64,8 @@ export default function Cashbook() {
     }
   });
 
-  // Calculate Invoiced Service Charge Revenue
+  // Revenue per invoice: the service charge for personal LC, the profit
+  // (selling price + VAT - vehicle cost) for company LC
   const inflowItems = useMemo(() => {
     return invoices.map((invoice) => {
       const q = quotations.find((x) => x.id === invoice.quotationId);
@@ -75,7 +76,8 @@ export default function Cashbook() {
         invoiceId: invoice.id,
         customerName: q?.name || 'N/A',
         vehicleDetails: m && v ? `${m.name} ${v.name} (${v.year})` : 'N/A',
-        serviceCharge: q?.serviceCharge ? Number(q.serviceCharge) : 0,
+        serviceCharge: cashbookRevenue(invoice, q),
+        isCompanyLc: invoice.lcOpenType === 'company',
         createdAt: invoice.createdAt,
         balance: balanceVal,
         isPaid: balanceVal <= 0
@@ -93,7 +95,7 @@ export default function Cashbook() {
     return true;
   };
 
-  // Only surface a service charge in the cashbook once the invoice's whole amount is fully paid
+  // Only surface revenue in the cashbook once the invoice's whole amount is fully paid
   const paidInflowItems = useMemo(() => {
     return inflowItems.filter(item => item.isPaid && inRange(item.createdAt));
   }, [inflowItems, fromDate, toDate]);
@@ -288,7 +290,7 @@ export default function Cashbook() {
       <div className="flex-shrink-0 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-800 font-display">Corporate Cashbook</h2>
-          <p className="text-xs text-slate-500">Track company profit margins based on service charges offset by general business expenses</p>
+          <p className="text-xs text-slate-500">Track company profit margins based on service charges and company-LC vehicle profits, offset by general business expenses</p>
         </div>
 
         {/* Report period filter — applies to both tables and the totals above */}
@@ -342,7 +344,7 @@ export default function Cashbook() {
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Realized Revenue</span>
             <h3 className="text-2xl font-bold text-emerald-600 font-mono">{formatCurrency(totalInflow)}</h3>
             <p className="text-[10px] text-slate-400">
-              Paid service charges.
+              Paid service charges & vehicle profits.
               {totalPendingInflow > 0 && ` (LKR ${totalPendingInflow.toLocaleString()} pending)`}
             </p>
           </div>
@@ -449,7 +451,7 @@ export default function Cashbook() {
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 flex-shrink-0">
               <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
                 <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-                Service Charge Revenues
+                Service Charge & Profit Revenues
               </h4>
               <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
                 {paidInflowItems.length} Sales
@@ -458,7 +460,7 @@ export default function Cashbook() {
 
             <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
               {paidInflowItems.length === 0 ? (
-                <EmptyState title={fromDate || toDate ? 'No fully-paid service charge revenues in the selected period' : 'No fully-paid service charge revenues yet'} />
+                <EmptyState title={fromDate || toDate ? 'No fully-paid revenues in the selected period' : 'No fully-paid revenues yet'} />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
@@ -467,7 +469,7 @@ export default function Cashbook() {
                       <th>Customer Name</th>
                       <th>Vehicle</th>
                       <th>Payment Status</th>
-                      <th className="text-right">Service Charge</th>
+                      <th className="text-right">Revenue</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -483,6 +485,9 @@ export default function Cashbook() {
                         </td>
                         <td className="text-right font-semibold font-mono text-emerald-600 text-xs">
                           {formatCurrency(item.serviceCharge)}
+                          <div className="text-[10px] font-sans font-normal text-slate-400">
+                            {item.isCompanyLc ? 'Vehicle profit (Company LC)' : 'Service charge'}
+                          </div>
                         </td>
                       </tr>
                     ))}

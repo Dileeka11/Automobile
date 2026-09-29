@@ -3,7 +3,7 @@ import { Printer, Save, RotateCcw } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { toast } from '@/store';
 import { Invoice, MakeModel, Quotation, VehicleModel } from '@/types';
-import { quotationTotal } from '@/utils';
+import { invoicePricing } from '@/utils';
 import {
   LeaseInvoiceData,
   LeaseInvoicePDFViewer,
@@ -64,7 +64,7 @@ export default function LeaseInvoiceModal({
   totalAdvance,
   onDownloaded,
 }: Props) {
-  const total = quotationTotal(quotation);
+  const total = invoicePricing(invoice, quotation).total;
 
   /** Values derived from the invoice/quotation — used until something is saved */
   const buildDefaults = useCallback((): LeaseInvoiceData => {

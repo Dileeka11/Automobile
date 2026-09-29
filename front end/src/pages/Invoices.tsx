@@ -4,13 +4,13 @@ import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo, FileSignature } from 'lucide-react';
-import { useDataStore, toast, quotationTotal } from '@/store';
+import { useDataStore, toast } from '@/store';
 import { Invoice, InvoicePayment } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import StatusBadge from '@/components/ui/Badge';
-import { formatCurrency, formatDate, invoiceSettlement } from '@/utils';
+import { formatCurrency, formatDate, invoiceSettlement, invoicePricing } from '@/utils';
 import { InvoicePDFViewer, downloadInvoicePDF } from '@/components/pdf/InvoicePDF';
 import {
   ConsolidatedReceiptPDFViewer,
@@ -28,11 +28,15 @@ const schema = z.object({
   isLcComplete: z.boolean().default(false),
   lcNumber: z.string().optional().nullable(),
   lcOpenType: z.enum(['company', 'personal', '']).optional().nullable(),
+  sellingPrice: z.coerce.number().min(0).optional(),
+  vatPercent: z.coerce.number().min(0).max(100).optional(),
   isTtComplete: z.boolean().default(false),
   etdDate: z.string().optional().nullable(),
   arrivalDate: z.string().optional().nullable(),
 });
 type FormData = z.infer<typeof schema>;
+
+const DEFAULT_VAT_PERCENT = 18;
 
 export default function Invoices() {
   const { invoices, quotations, vehicleModels, makeModels, addInvoice, updateInvoice, deleteInvoice, fetchData } = useDataStore();
@@ -63,7 +67,7 @@ export default function Invoices() {
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', isTtComplete: false, etdDate: '', arrivalDate: '' },
+    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' },
   });
 
   const selectedQId = useWatch({ control, name: 'quotationId' });
@@ -73,11 +77,21 @@ export default function Invoices() {
   const etdVal = useWatch({ control, name: 'etdDate' });
   const arrivalVal = useWatch({ control, name: 'arrivalDate' });
   const lcOpenTypeVal = useWatch({ control, name: 'lcOpenType' });
+  const sellingPriceVal = Number(useWatch({ control, name: 'sellingPrice' }) || 0);
+  const vatPercentVal = Number(useWatch({ control, name: 'vatPercent' }) || 0);
 
   const selectedQuotation = useMemo(() => quotations.find((q) => q.id === selectedQId), [quotations, selectedQId]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedQuotation?.vehicleModelId), [vehicleModels, selectedQuotation]);
   const selectedMake = useMemo(() => makeModels.find((m) => m.id === selectedQuotation?.makeModelId), [makeModels, selectedQuotation]);
-  const total = selectedQuotation ? quotationTotal(selectedQuotation) : 0;
+  // Company LC bills the selling price + VAT; personal LC bills the quotation total
+  const pricing = useMemo(
+    () => invoicePricing({ lcOpenType: lcOpenTypeVal, sellingPrice: sellingPriceVal, vatPercent: vatPercentVal }, selectedQuotation),
+    [lcOpenTypeVal, sellingPriceVal, vatPercentVal, selectedQuotation],
+  );
+  const total = pricing.total;
+  const isCompanyLc = lcOpenTypeVal === 'company';
+  // Company LC must be sold above the vehicle cost
+  const sellingPriceInvalid = isCompanyLc && !!selectedQuotation && sellingPriceVal <= pricing.cost;
 
   const paymentsSum = useMemo(() => payments.reduce((sum, p) => sum + Number(p.amount), 0), [payments]);
 
@@ -151,7 +165,7 @@ export default function Invoices() {
       .reduce((sum, p) => sum + Number(p.amount), 0) + extraAmount;
     const advanceVal = Number(advance || 0);
     const balanceVal = invoiceSettlement({
-      total: quotationTotal(selectedQuotation),
+      total,
       advanceAmount: advanceVal,
       installments: installmentsSum,
       lcAmount: lcVal,
@@ -250,28 +264,37 @@ export default function Invoices() {
   // change, so the invoice table & PDF always reflect the yellow box.
   useEffect(() => {
     if (!modalOpen || !editingInvoice || !selectedQuotation || !paymentsLoaded) return;
+    // Don't persist a company selling price that is not above the cost — Save will reject it
+    if (sellingPriceInvalid) return;
     const advanceVal = Number(advance || 0);
+    const lcOpenType = lcOpenTypeVal || null;
     const inSync =
       Math.abs(Number(editingInvoice.balance ?? 0) - balance) < 0.01 &&
       Math.abs(Number(editingInvoice.advanceAmount ?? 0) - advanceVal) < 0.01 &&
       !!editingInvoice.isLcComplete === isLcChecked &&
-      !!editingInvoice.isTtComplete === isTtChecked;
+      !!editingInvoice.isTtComplete === isTtChecked &&
+      (editingInvoice.lcOpenType || null) === lcOpenType &&
+      Math.abs(Number(editingInvoice.sellingPrice ?? 0) - sellingPriceVal) < 0.01 &&
+      Math.abs(Number(editingInvoice.vatPercent ?? 0) - vatPercentVal) < 0.001;
     if (inSync) return;
     const t = setTimeout(() => {
       updateInvoice(editingInvoice.id, {
         advanceAmount: advanceVal,
         isLcComplete: isLcChecked,
         isTtComplete: isTtChecked,
+        lcOpenType,
+        sellingPrice: sellingPriceVal,
+        vatPercent: vatPercentVal,
         balance,
       });
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen, editingInvoice, selectedQuotation, paymentsLoaded, advance, isLcChecked, isTtChecked, balance]);
+  }, [modalOpen, editingInvoice, selectedQuotation, paymentsLoaded, advance, isLcChecked, isTtChecked, lcOpenTypeVal, sellingPriceVal, vatPercentVal, sellingPriceInvalid, balance]);
 
   const openAdd = () => {
     setEditingInvoice(null);
-    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', isTtComplete: false, etdDate: '', arrivalDate: '' });
+    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' });
     setLcCopyFile(null);
     setInspectionCertificateFile(null);
     setYardPicturesFiles([]);
@@ -293,6 +316,8 @@ export default function Invoices() {
       isLcComplete: !!i.isLcComplete,
       lcNumber: i.lcNumber || '',
       lcOpenType: i.lcOpenType || '',
+      sellingPrice: Number(i.sellingPrice || 0),
+      vatPercent: i.vatPercent ?? DEFAULT_VAT_PERCENT,
       isTtComplete: !!i.isTtComplete,
       etdDate: i.etdDate || '',
       arrivalDate: i.arrivalDate || '',
@@ -331,12 +356,16 @@ export default function Invoices() {
 
   const onSubmit = async (data: FormData) => {
     if (!selectedQuotation) { toast.error('Invalid quotation'); return; }
+    if (sellingPriceInvalid) {
+      toast.error(`Selling price must be higher than the vehicle cost (${formatCurrency(pricing.cost)})`);
+      return;
+    }
     
     const lcAmountVal = selectedQuotation.lcAmount || 0;
     const ttAmountVal = selectedQuotation.ttAmount || 0;
     const installmentsSum = payments.reduce((sum, p) => sum + Number(p.amount), 0);
     const balanceVal = invoiceSettlement({
-      total: quotationTotal(selectedQuotation),
+      total,
       advanceAmount: Number(data.advanceAmount || 0),
       installments: installmentsSum,
       lcAmount: lcAmountVal,
@@ -357,6 +386,8 @@ export default function Invoices() {
         formData.append('isLcComplete', String(!!data.isLcComplete));
         formData.append('lcNumber', data.lcNumber || '');
         formData.append('lcOpenType', data.lcOpenType || '');
+        formData.append('sellingPrice', String(data.sellingPrice || 0));
+        formData.append('vatPercent', String(data.vatPercent || 0));
         formData.append('isTtComplete', String(!!data.isTtComplete));
         formData.append('etdDate', data.etdDate || '');
         formData.append('arrivalDate', data.arrivalDate || '');
@@ -395,6 +426,8 @@ export default function Invoices() {
           isLcComplete: !!data.isLcComplete,
           lcNumber: data.lcNumber,
           lcOpenType: data.lcOpenType === '' ? null : data.lcOpenType,
+          sellingPrice: data.sellingPrice || 0,
+          vatPercent: data.vatPercent || 0,
           isTtComplete: !!data.isTtComplete,
           etdDate: data.etdDate,
           arrivalDate: data.arrivalDate,
@@ -434,7 +467,7 @@ export default function Invoices() {
     const newLcStatus = !i.isLcComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
     const newBalance = invoiceSettlement({
-      total: q ? quotationTotal(q) : 0,
+      total: invoicePricing(i, q).total,
       advanceAmount: Number(i.advanceAmount || 0),
       installments: Number(i.ttAmount || 0),
       lcAmount: q?.lcAmount || 0,
@@ -451,7 +484,7 @@ export default function Invoices() {
     const newTtStatus = !i.isTtComplete;
     const q = quotations.find((x) => x.id === i.quotationId);
     const newBalance = invoiceSettlement({
-      total: q ? quotationTotal(q) : 0,
+      total: invoicePricing(i, q).total,
       advanceAmount: Number(i.advanceAmount || 0),
       installments: Number(i.ttAmount || 0),
       lcAmount: q?.lcAmount || 0,
@@ -517,7 +550,7 @@ export default function Invoices() {
                   // Compute Total Advance & Balance live (matches edit-page yellow box).
                   // i.ttAmount from GET = SUM of installment payments.
                   const rowSettlement = invoiceSettlement({
-                    total: q ? quotationTotal(q) : 0,
+                    total: invoicePricing(i, q).total,
                     advanceAmount: Number(i.advanceAmount || 0),
                     installments: Number(i.ttAmount || 0),
                     lcAmount: q?.lcAmount || 0,
@@ -626,8 +659,99 @@ export default function Invoices() {
               </div>
               <div className="flex justify-between pt-3 border-t border-slate-200">
                 <span className="text-slate-600 font-medium">Total Vehicle Cost</span>
-                <span className="font-bold text-brand-700">{formatCurrency(total)}</span>
+                <span className="font-bold text-brand-700">{formatCurrency(pricing.cost)}</span>
               </div>
+            </div>
+          )}
+
+          <div className="border-t pt-4 space-y-4">
+            <h4 className="text-sm font-bold text-slate-800">Payment Milestones Status</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" {...register('isLcComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
+                  <span className="text-sm text-slate-700 font-medium">LC Amount Completed / Opened</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="label">LC Number</label>
+                    <input type="text" {...register('lcNumber')} placeholder="Enter LC Number" className="input" />
+                  </div>
+                  <div>
+                    <label className="label">LC Open Type</label>
+                    <select {...register('lcOpenType')} className="input">
+                      <option value="">Select Type</option>
+                      <option value="company">Company</option>
+                      <option value="personal">Personal</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" {...register('isTtComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
+                  <span className="text-sm text-slate-700 font-medium">Other Payment Completed / Paid</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Company LC: vehicle is sold at a selling price + VAT; the profit goes to the cashbook */}
+          {isCompanyLc && (
+            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 space-y-3">
+              <h4 className="text-sm font-bold text-yellow-900">Company LC — Selling Price & VAT</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Selling Price (LKR)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    {...register('sellingPrice')}
+                    placeholder={selectedQuotation ? `More than ${pricing.cost.toLocaleString()}` : 'Enter selling price'}
+                    className={`input bg-yellow-100 border-yellow-400 font-semibold ${sellingPriceInvalid ? 'border-red-500' : ''}`}
+                  />
+                  {sellingPriceInvalid && (
+                    <p className="text-xs text-red-600 mt-1">Must be higher than the vehicle cost ({formatCurrency(pricing.cost)})</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label">VAT Percentage (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    {...register('vatPercent')}
+                    placeholder="e.g. 18"
+                    className="input bg-yellow-100 border-yellow-400 font-semibold"
+                  />
+                  {errors.vatPercent && <p className="text-xs text-red-600 mt-1">Enter a VAT % between 0 and 100</p>}
+                </div>
+              </div>
+              {selectedQuotation && (
+                <div className="space-y-1 text-sm text-yellow-900 border-t border-yellow-300 pt-2">
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>Vehicle Cost</span>
+                    <span>{formatCurrency(pricing.cost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Vehicle Price</span>
+                    <span className="font-medium">{formatCurrency(sellingPriceVal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>VAT ({vatPercentVal}%)</span>
+                    <span className="font-medium">{formatCurrency(pricing.vatAmount)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold border-t border-yellow-300 pt-1">
+                    <span>Total Vehicle Price</span>
+                    <span className="text-lg">{formatCurrency(pricing.total)}</span>
+                  </div>
+                  {!sellingPriceInvalid && (
+                    <div className="flex justify-between text-xs text-emerald-700">
+                      <span>Profit (to cashbook once fully paid)</span>
+                      <span className="font-semibold">{formatCurrency(pricing.profit)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -701,37 +825,6 @@ export default function Invoices() {
             </div>
           </div>
 
-          <div className="border-t pt-4 space-y-4">
-            <h4 className="text-sm font-bold text-slate-800">Payment Milestones Status</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" {...register('isLcComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
-                  <span className="text-sm text-slate-700 font-medium">LC Amount Completed / Opened</span>
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="label">LC Number</label>
-                    <input type="text" {...register('lcNumber')} placeholder="Enter LC Number" className="input" />
-                  </div>
-                  <div>
-                    <label className="label">LC Open Type</label>
-                    <select {...register('lcOpenType')} className="input">
-                      <option value="">Select Type</option>
-                      <option value="company">Company</option>
-                      <option value="personal">Personal</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" {...register('isTtComplete')} className="rounded text-brand-600 focus:ring-brand-500 w-4 h-4 border-slate-300" />
-                  <span className="text-sm text-slate-700 font-medium">Other Payment Completed / Paid</span>
-                </label>
-              </div>
-            </div>
-          </div>
 
           <div className="border-t pt-4 space-y-4">
             <h4 className="text-sm font-bold text-slate-800">Dates Schedule</h4>
@@ -1023,7 +1116,7 @@ export default function Invoices() {
         const m = makeModels.find((x) => x.id === q?.makeModelId);
         // Everything settled so far — advance plus anything paid through the company
         const viewTotalAdvance = invoiceSettlement({
-          total: q ? quotationTotal(q) : 0,
+          total: invoicePricing(viewing, q).total,
           advanceAmount: Number(viewing.advanceAmount || 0),
           installments: Number(viewing.ttAmount || 0),
           lcAmount: q?.lcAmount || 0,

@@ -38,6 +38,50 @@ function deleteInvoiceDoc($pdo, $id, $column, $flag) {
     $pdo->prepare("UPDATE invoices SET $column = NULL WHERE id = ?")->execute([$id]);
 }
 
+// Blank / missing input -> null, otherwise a float.
+function nullableFloat($v) {
+    return ($v === null || $v === '') ? null : (float)$v;
+}
+
+// Shape an invoices row (joined with the installment sum as tt_amount) for the API.
+function formatInvoiceRow($pdo, $row) {
+    $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
+    $picStmt->execute([$row['id']]);
+
+    return [
+        'id' => $row['id'],
+        'quotationId' => $row['quotation_id'],
+        'ttAmount' => (float)$row['tt_amount'],
+        'advanceAmount' => (float)$row['advance_amount'],
+        'balance' => (float)$row['balance'],
+        'isLcComplete' => (bool)$row['is_lc_complete'],
+        'lcNumber' => $row['lc_number'],
+        'lcOpenType' => $row['lc_open_type'],
+        'sellingPrice' => $row['selling_price'] !== null ? (float)$row['selling_price'] : null,
+        'vatPercent' => $row['vat_percent'] !== null ? (float)$row['vat_percent'] : null,
+        'isTtComplete' => (bool)$row['is_tt_complete'],
+        'status' => strtolower($row['status']),
+        'lcCopyPath' => $row['lc_copy_path'],
+        'inspectionCertificatePath' => $row['inspection_certificate_path'],
+        'exportCertificatePath' => $row['export_certificate_path'] ?? null,
+        'transferDocumentPath' => $row['transfer_document_path'] ?? null,
+        'customsDocumentPath' => $row['customs_document_path'] ?? null,
+        'etdDate' => $row['etd_date'],
+        'arrivalDate' => $row['arrival_date'],
+        'yardPictures' => $picStmt->fetchAll(),
+        'customDocuments' => getCustomDocuments($pdo, $row['id']),
+        'createdAt' => $row['created_at']
+    ];
+}
+
+function fetchInvoice($pdo, $id) {
+    $stmt = $pdo->prepare("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i WHERE i.id = ?");
+    $stmt->execute([$id]);
+    return formatInvoiceRow($pdo, $stmt->fetch());
+}
+
+ensureInvoicePricingColumns($pdo);
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
@@ -45,33 +89,7 @@ switch ($method) {
         $stmt = $pdo->query("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i ORDER BY i.created_at DESC");
         $results = [];
         foreach ($stmt->fetchAll() as $row) {
-            // Fetch yard pictures for this invoice
-            $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
-            $picStmt->execute([$row['id']]);
-            $yardPictures = $picStmt->fetchAll();
-
-            $results[] = [
-                'id' => $row['id'],
-                'quotationId' => $row['quotation_id'],
-                'ttAmount' => (float)$row['tt_amount'],
-                'advanceAmount' => (float)$row['advance_amount'],
-                'balance' => (float)$row['balance'],
-                'isLcComplete' => (bool)$row['is_lc_complete'],
-                'lcNumber' => $row['lc_number'],
-                'lcOpenType' => $row['lc_open_type'],
-                'isTtComplete' => (bool)$row['is_tt_complete'],
-                'status' => strtolower($row['status']),
-                'lcCopyPath' => $row['lc_copy_path'],
-                'inspectionCertificatePath' => $row['inspection_certificate_path'],
-                'exportCertificatePath' => $row['export_certificate_path'] ?? null,
-                'transferDocumentPath' => $row['transfer_document_path'] ?? null,
-                'customsDocumentPath' => $row['customs_document_path'] ?? null,
-                'etdDate' => $row['etd_date'],
-                'arrivalDate' => $row['arrival_date'],
-                'yardPictures' => $yardPictures,
-                'customDocuments' => getCustomDocuments($pdo, $row['id']),
-                'createdAt' => $row['created_at']
-            ];
+            $results[] = formatInvoiceRow($pdo, $row);
         }
         sendJson($results);
         break;
@@ -222,6 +240,14 @@ switch ($method) {
                     $fields[] = "lc_open_type = ?";
                     $params[] = empty($_POST['lcOpenType']) ? null : $_POST['lcOpenType'];
                 }
+                if (isset($_POST['sellingPrice'])) {
+                    $fields[] = "selling_price = ?";
+                    $params[] = nullableFloat($_POST['sellingPrice']);
+                }
+                if (isset($_POST['vatPercent'])) {
+                    $fields[] = "vat_percent = ?";
+                    $params[] = nullableFloat($_POST['vatPercent']);
+                }
                 if (isset($_POST['isTtComplete'])) {
                     $fields[] = "is_tt_complete = ?";
                     $params[] = filter_var($_POST['isTtComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
@@ -262,37 +288,7 @@ switch ($method) {
                     $stmt->execute($params);
                 }
 
-                // Fetch updated invoice
-                $stmt = $pdo->prepare("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i WHERE i.id = ?");
-                $stmt->execute([$id]);
-                $row = $stmt->fetch();
-
-                $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
-                $picStmt->execute([$id]);
-                $yardPictures = $picStmt->fetchAll();
-
-                sendJson([
-                    'id' => $row['id'],
-                    'quotationId' => $row['quotation_id'],
-                    'ttAmount' => (float)$row['tt_amount'],
-                    'advanceAmount' => (float)$row['advance_amount'],
-                    'balance' => (float)$row['balance'],
-                    'isLcComplete' => (bool)$row['is_lc_complete'],
-                    'lcNumber' => $row['lc_number'],
-                    'lcOpenType' => $row['lc_open_type'],
-                    'isTtComplete' => (bool)$row['is_tt_complete'],
-                    'status' => strtolower($row['status']),
-                    'lcCopyPath' => $row['lc_copy_path'],
-                    'inspectionCertificatePath' => $row['inspection_certificate_path'],
-                    'exportCertificatePath' => $row['export_certificate_path'] ?? null,
-                    'transferDocumentPath' => $row['transfer_document_path'] ?? null,
-                    'customsDocumentPath' => $row['customs_document_path'] ?? null,
-                    'etdDate' => $row['etd_date'],
-                    'arrivalDate' => $row['arrival_date'],
-                    'yardPictures' => $yardPictures,
-                    'customDocuments' => getCustomDocuments($pdo, $row['id']),
-                    'createdAt' => $row['created_at']
-                ]);
+                sendJson(fetchInvoice($pdo, $id));
 
             } catch (Exception $e) {
                 sendError($e->getMessage());
@@ -319,7 +315,7 @@ switch ($method) {
             $dueDate = date('Y-m-d', strtotime('+3 days'));
             $status = strtoupper($data['status'] ?? 'PENDING');
 
-            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, lc_number, lc_open_type, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, lc_number, lc_open_type, selling_price, vat_percent, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $totalAmount = ($data['advanceAmount'] ?? 0) + ($data['balance'] ?? 0);
 
@@ -334,6 +330,8 @@ switch ($method) {
                 isset($data['isLcComplete']) ? ($data['isLcComplete'] ? 1 : 0) : 0,
                 $data['lcNumber'] ?? null,
                 $data['lcOpenType'] ?? null,
+                nullableFloat($data['sellingPrice'] ?? null),
+                nullableFloat($data['vatPercent'] ?? null),
                 isset($data['isTtComplete']) ? ($data['isTtComplete'] ? 1 : 0) : 0,
                 $dueDate,
                 $status,
@@ -341,28 +339,7 @@ switch ($method) {
                 empty($data['arrivalDate']) ? null : $data['arrivalDate']
             ]);
 
-            sendJson([
-                'id' => $id,
-                'quotationId' => $data['quotationId'],
-                'ttAmount' => (float)($data['ttAmount'] ?? 0),
-                'advanceAmount' => (float)($data['advanceAmount'] ?? 0),
-                'balance' => (float)($data['balance'] ?? 0),
-                'isLcComplete' => isset($data['isLcComplete']) ? (bool)$data['isLcComplete'] : false,
-                'lcNumber' => $data['lcNumber'] ?? null,
-                'lcOpenType' => $data['lcOpenType'] ?? null,
-                'isTtComplete' => isset($data['isTtComplete']) ? (bool)$data['isTtComplete'] : false,
-                'status' => strtolower($status),
-                'lcCopyPath' => null,
-                'inspectionCertificatePath' => null,
-                'exportCertificatePath' => null,
-                'transferDocumentPath' => null,
-                'customsDocumentPath' => null,
-                'etdDate' => $data['etdDate'] ?? null,
-                'arrivalDate' => $data['arrivalDate'] ?? null,
-                'yardPictures' => [],
-                'customDocuments' => [],
-                'createdAt' => date('c')
-            ]);
+            sendJson(fetchInvoice($pdo, $id));
 
         } catch (Exception $e) {
             sendError($e->getMessage());
@@ -411,6 +388,14 @@ switch ($method) {
                 $fields[] = "lc_open_type = ?";
                 $params[] = empty($data['lcOpenType']) ? null : $data['lcOpenType'];
             }
+            if (array_key_exists('sellingPrice', $data)) {
+                $fields[] = "selling_price = ?";
+                $params[] = nullableFloat($data['sellingPrice']);
+            }
+            if (array_key_exists('vatPercent', $data)) {
+                $fields[] = "vat_percent = ?";
+                $params[] = nullableFloat($data['vatPercent']);
+            }
             if (isset($data['isTtComplete'])) {
                 $fields[] = "is_tt_complete = ?";
                 $params[] = $data['isTtComplete'] ? 1 : 0;
@@ -431,37 +416,7 @@ switch ($method) {
                 $stmt->execute($params);
             }
 
-            // Fetch updated invoice
-            $stmt = $pdo->prepare("SELECT i.*, COALESCE((SELECT SUM(amount) FROM invoice_payments WHERE invoice_id = i.id), 0.00) AS tt_amount FROM invoices i WHERE i.id = ?");
-            $stmt->execute([$id]);
-            $row = $stmt->fetch();
-
-            $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
-            $picStmt->execute([$id]);
-            $yardPictures = $picStmt->fetchAll();
-
-            sendJson([
-                'id' => $row['id'],
-                'quotationId' => $row['quotation_id'],
-                'ttAmount' => (float)$row['tt_amount'],
-                'advanceAmount' => (float)$row['advance_amount'],
-                'balance' => (float)$row['balance'],
-                'isLcComplete' => (bool)$row['is_lc_complete'],
-                'lcNumber' => $row['lc_number'],
-                'lcOpenType' => $row['lc_open_type'],
-                'isTtComplete' => (bool)$row['is_tt_complete'],
-                'status' => strtolower($row['status']),
-                'lcCopyPath' => $row['lc_copy_path'],
-                'inspectionCertificatePath' => $row['inspection_certificate_path'],
-                'exportCertificatePath' => $row['export_certificate_path'] ?? null,
-                'transferDocumentPath' => $row['transfer_document_path'] ?? null,
-                'customsDocumentPath' => $row['customs_document_path'] ?? null,
-                'etdDate' => $row['etd_date'],
-                'arrivalDate' => $row['arrival_date'],
-                'yardPictures' => $yardPictures,
-                'customDocuments' => getCustomDocuments($pdo, $row['id']),
-                'createdAt' => $row['created_at']
-            ]);
+            sendJson(fetchInvoice($pdo, $id));
 
         } catch (Exception $e) {
             sendError($e->getMessage());

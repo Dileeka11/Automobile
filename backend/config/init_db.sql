@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS invoices (
     is_lc_complete TINYINT(1) DEFAULT 0,
     lc_number VARCHAR(100) NULL,
     lc_open_type VARCHAR(50) NULL,
+    selling_price DECIMAL(15, 2) NULL,
+    vat_percent DECIMAL(5, 2) NULL,
     is_tt_complete TINYINT(1) DEFAULT 0,
     due_date DATE NOT NULL,
     status ENUM('Pending', 'Partial', 'Paid') DEFAULT 'Pending',

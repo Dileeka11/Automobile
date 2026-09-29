@@ -80,5 +80,59 @@ export const invoiceSettlement = (i: SettlementInput): Settlement => {
   };
 };
 
+export interface PricingInput {
+  lcOpenType?: 'company' | 'personal' | '' | null;
+  sellingPrice?: number | null;
+  vatPercent?: number | null;
+}
+
+export interface InvoicePricing {
+  /** Quotation total — what the vehicle costs the company */
+  cost: number;
+  /** Company LC with a selling price: the customer is billed selling price + VAT */
+  isCompanyPriced: boolean;
+  sellingPrice: number;
+  vatPercent: number;
+  vatAmount: number;
+  /** What the customer owes in total — selling price + VAT, or the cost for personal LC */
+  total: number;
+  /** Total vehicle price (selling price + VAT) - cost (company LC only) */
+  profit: number;
+}
+
+/**
+ * Personal LC: the customer pays the quotation total and the service charge is the revenue.
+ * Company LC: the customer pays the selling price + VAT; the revenue is that total - cost.
+ * A company invoice without a selling price yet falls back to the personal behaviour.
+ */
+export const invoicePricing = (i: PricingInput, q?: Quotation | null): InvoicePricing => {
+  const cost = q ? quotationTotal(q) : 0;
+  const sellingPrice = Number(i.sellingPrice || 0);
+  const vatPercent = Number(i.vatPercent || 0);
+  const isCompanyPriced = i.lcOpenType === 'company' && sellingPrice > 0;
+  if (!isCompanyPriced) {
+    return { cost, isCompanyPriced, sellingPrice, vatPercent, vatAmount: 0, total: cost, profit: 0 };
+  }
+  const vatAmount = Math.round(sellingPrice * vatPercent) / 100;
+  return {
+    cost,
+    isCompanyPriced,
+    sellingPrice,
+    vatPercent,
+    vatAmount,
+    total: sellingPrice + vatAmount,
+    profit: sellingPrice + vatAmount - cost,
+  };
+};
+
+/**
+ * The amount an invoice adds to the cashbook once it is fully paid:
+ * the service charge for personal LC, the profit (selling price + VAT - cost) for company LC.
+ */
+export const cashbookRevenue = (i: PricingInput, q?: Quotation | null): number => {
+  if (i.lcOpenType === 'company') return Math.max(0, invoicePricing(i, q).profit);
+  return Number(q?.serviceCharge || 0);
+};
+
 export const cn = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(' ');

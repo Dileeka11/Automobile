@@ -46,6 +46,10 @@ export interface Invoice {
   isLcComplete?: boolean;
   lcNumber?: string | null;
   lcOpenType?: 'company' | 'personal' | null;
+  /** Company LC only — price the vehicle is sold at (before VAT) */
+  sellingPrice?: number | null;
+  /** Company LC only — VAT % charged on the selling price */
+  vatPercent?: number | null;
   isTtComplete?: boolean;
   lcCopyPath?: string | null;
   inspectionCertificatePath?: string | null;

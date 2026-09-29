@@ -10,7 +10,9 @@ try {
         'transfer_document_path' => "VARCHAR(255) NULL",
         'customs_document_path' => "VARCHAR(255) NULL",
         'etd_date' => "DATE NULL",
-        'arrival_date' => "DATE NULL"
+        'arrival_date' => "DATE NULL",
+        'selling_price' => "DECIMAL(15,2) NULL",
+        'vat_percent' => "DECIMAL(5,2) NULL"
     ];
 
     foreach ($cols as $colName => $definition) {

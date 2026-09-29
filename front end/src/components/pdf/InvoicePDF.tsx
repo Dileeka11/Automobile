@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image, Svg, Path, Rect, Circle, Line, G, Polygon } from '@react-pdf/renderer';
 import { PDFDocument } from 'pdf-lib';
 import { Invoice, MakeModel, Quotation, VehicleModel } from '@/types';
-import { formatCurrency, formatDate, quotationTotal, invoiceSettlement } from '@/utils';
+import { formatCurrency, formatDate, invoicePricing, invoiceSettlement } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
@@ -568,7 +568,8 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
     ['Clearing Charge', quotation.clearingCharge || 0],
     ['DMI Charge', quotation.dmiCharge || 0],
   ];
-  const total = quotationTotal(quotation);
+  const pricing = invoicePricing(invoice, quotation);
+  const total = pricing.total;
   // Compute live (matches edit-page yellow box). invoice.ttAmount from GET = SUM of installments.
   const settlement = invoiceSettlement({
     total,
@@ -654,21 +655,41 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <Text style={[s.tHeadCell, s.tCellLabel]}>Description</Text>
             <Text style={[s.tHeadCell, s.tCellValue]}>Amount (LKR)</Text>
           </View>
-          {/* CIF value is informational only and is not part of the total */}
-          <View style={s.tRow}>
-            <Text style={[s.tCellLabel, { color: GRAY_TEXT }]}>CIF Value (reference only)</Text>
-            <Text style={[s.tCellValue, { color: GRAY_TEXT }]}>{formatCurrency(quotation.cifValue || 0)}</Text>
-          </View>
-          {rows.map(([label, value], idx) => (
-            <View key={label} style={[s.tRow, idx % 2 === 1 ? s.tRowAlt : {}]}>
-              <Text style={s.tCellLabel}>{label}</Text>
-              <Text style={s.tCellValue}>{formatCurrency(value)}</Text>
-            </View>
-          ))}
-          <View style={s.totalRow}>
-            <Text style={s.totalLabel}>TOTAL</Text>
-            <Text style={s.totalValue}>{formatCurrency(total)}</Text>
-          </View>
+          {pricing.isCompanyPriced ? (
+            <>
+              {/* Company LC: the customer is billed the selling price + VAT, not the cost breakdown */}
+              <View style={s.tRow}>
+                <Text style={s.tCellLabel}>Vehicle Price</Text>
+                <Text style={s.tCellValue}>{formatCurrency(pricing.sellingPrice)}</Text>
+              </View>
+              <View style={[s.tRow, s.tRowAlt]}>
+                <Text style={s.tCellLabel}>VAT ({pricing.vatPercent}%)</Text>
+                <Text style={s.tCellValue}>{formatCurrency(pricing.vatAmount)}</Text>
+              </View>
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>TOTAL VEHICLE PRICE</Text>
+                <Text style={s.totalValue}>{formatCurrency(total)}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* CIF value is informational only and is not part of the total */}
+              <View style={s.tRow}>
+                <Text style={[s.tCellLabel, { color: GRAY_TEXT }]}>CIF Value (reference only)</Text>
+                <Text style={[s.tCellValue, { color: GRAY_TEXT }]}>{formatCurrency(quotation.cifValue || 0)}</Text>
+              </View>
+              {rows.map(([label, value], idx) => (
+                <View key={label} style={[s.tRow, idx % 2 === 1 ? s.tRowAlt : {}]}>
+                  <Text style={s.tCellLabel}>{label}</Text>
+                  <Text style={s.tCellValue}>{formatCurrency(value)}</Text>
+                </View>
+              ))}
+              <View style={s.totalRow}>
+                <Text style={s.totalLabel}>TOTAL</Text>
+                <Text style={s.totalValue}>{formatCurrency(total)}</Text>
+              </View>
+            </>
+          )}
           {/* Total Advance Paid (customer cash — the only thing that reduces the balance) */}
           <View style={s.tRow}>
             <Text style={s.tCellLabel}>Advance Paid</Text>

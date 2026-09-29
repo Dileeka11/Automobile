@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
 import { Invoice, MakeModel, Quotation, VehicleModel, InvoicePayment } from '@/types';
-import { formatCurrency, formatDate, quotationTotal, invoiceSettlement } from '@/utils';
+import { formatCurrency, formatDate, invoicePricing, invoiceSettlement } from '@/utils';
 
 const NAVY = '#1a3a6e';
 const BLUE = '#4169E1';
@@ -137,7 +137,8 @@ interface ConsolidatedProps {
 }
 
 export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make, allPayments }: ConsolidatedProps) {
-  const totalVehicleCost = quotationTotal(quotation);
+  const pricing = invoicePricing(invoice, quotation);
+  const totalVehicleCost = pricing.total;
   const advanceAmount = Number(invoice.advanceAmount || 0);
   const totalInstallmentsPaid = allPayments.reduce((acc, p) => acc + Number(p.amount), 0);
   const settlement = invoiceSettlement({
@@ -165,7 +166,7 @@ export function ConsolidatedReceiptDocument({ invoice, quotation, vehicle, make,
 
         <View style={s.summaryBox}>
           <View style={s.row}>
-            <Text style={s.cardLabel}>Total Vehicle Cost:</Text>
+            <Text style={s.cardLabel}>{pricing.isCompanyPriced ? `Total Vehicle Price (incl. VAT ${pricing.vatPercent}%):` : 'Total Vehicle Cost:'}</Text>
             <Text style={s.cardValue}>{formatCurrency(totalVehicleCost)}</Text>
           </View>
           <View style={s.divider} />

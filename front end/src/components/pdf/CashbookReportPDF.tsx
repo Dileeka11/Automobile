@@ -166,14 +166,14 @@ export function CashbookReportDoc({
         </View>
 
         {/* ── Service Charge Revenues ── */}
-        <Text style={s.sectionTitle}>Service Charge Revenues ({revenues.length})</Text>
+        <Text style={s.sectionTitle}>Service Charge & Profit Revenues ({revenues.length})</Text>
         <View style={s.table}>
           <View style={s.tHead}>
             <Text style={[s.tHeadCell, { flex: 1.2 }]}>Invoice ID</Text>
             <Text style={[s.tHeadCell, { flex: 1.6 }]}>Customer</Text>
             <Text style={[s.tHeadCell, { flex: 2 }]}>Vehicle</Text>
             <Text style={[s.tHeadCell, { flex: 1 }]}>Date</Text>
-            <Text style={[s.tHeadCell, { flex: 1.2, textAlign: 'right' }]}>Service Charge</Text>
+            <Text style={[s.tHeadCell, { flex: 1.2, textAlign: 'right' }]}>Revenue</Text>
           </View>
           {revenues.length === 0 ? (
             <Text style={s.emptyNote}>No fully-paid service charge revenues in this period.</Text>
