@@ -176,7 +176,7 @@ export function CashbookReportDoc({
             <Text style={[s.tHeadCell, { flex: 1.2, textAlign: 'right' }]}>Revenue</Text>
           </View>
           {revenues.length === 0 ? (
-            <Text style={s.emptyNote}>No fully-paid service charge revenues in this period.</Text>
+            <Text style={s.emptyNote}>No revenues in this period.</Text>
           ) : (
             revenues.map((r, i) => (
               <View key={`${r.invoiceId}-${i}`} style={[s.tRow, ...(i % 2 ? [s.tRowAlt] : [])]}>

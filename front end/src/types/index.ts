@@ -140,6 +140,8 @@ export interface User {
 
 export interface CashbookExpense {
   id: number;
+  /** 'revenue' = cash income added by hand; anything else is an expense */
+  entryType?: 'expense' | 'revenue';
   expenseType: string;
   amount: number;
   description: string;

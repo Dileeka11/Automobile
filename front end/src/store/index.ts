@@ -93,7 +93,7 @@ interface DataState {
 
   // Cashbook general expenses
   fetchCashbookExpenses: () => Promise<void>;
-  addCashbookExpense: (exp: { expenseType: string; amount: number; description: string; dateIncurred: string }) => Promise<void>;
+  addCashbookExpense: (exp: { entryType?: 'expense' | 'revenue'; expenseType: string; amount: number; description: string; dateIncurred: string }) => Promise<void>;
   deleteCashbookExpense: (id: number) => Promise<void>;
 
   currentUser: User | null;

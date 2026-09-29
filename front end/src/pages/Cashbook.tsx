@@ -19,6 +19,17 @@ const BUILT_IN_CATEGORIES = [
   { value: 'Other', label: 'Other Operational Costs' },
 ];
 
+/** Categories offered when adding cash revenue by hand */
+const REVENUE_CATEGORIES = [
+  { value: 'Cash Sale', label: 'Cash Sale' },
+  { value: 'Commission', label: 'Commission' },
+  { value: 'Service Income', label: 'Service Income' },
+  { value: 'Other Income', label: 'Other Income' },
+];
+
+type EntryMode = 'expense' | 'revenue';
+const defaultCategory = (mode: EntryMode) => (mode === 'revenue' ? REVENUE_CATEGORIES[0].value : BUILT_IN_CATEGORIES[0].value);
+
 /** Sentinel values for the two action rows at the bottom of the dropdown */
 const ADD_NEW = '__add_new__';
 const ONE_OFF = '__one_off__';
@@ -44,6 +55,8 @@ export default function Cashbook() {
   /* ── Expense categories: built-ins + user-added ones + a one-off text box ── */
   const [customCategories, setCustomCategories] = useState<ExpenseCategory[]>([]);
   const [oneOff, setOneOff] = useState<string | null>(null);
+  // The form records either an expense or cash revenue added by hand
+  const [entryMode, setEntryMode] = useState<EntryMode>('expense');
 
   const loadCategories = async () => {
     try {
@@ -100,8 +113,8 @@ export default function Cashbook() {
     return inflowItems.filter(item => item.isPaid && inRange(item.createdAt));
   }, [inflowItems, fromDate, toDate]);
 
-  const totalInflow = useMemo(() => {
-    // Realized Revenue = sum of every service charge shown in the table (fully-paid invoices only)
+  const invoiceInflow = useMemo(() => {
+    // Revenue from fully-paid invoices only
     return paidInflowItems.reduce((sum, item) => sum + item.serviceCharge, 0);
   }, [paidInflowItems]);
 
@@ -112,10 +125,49 @@ export default function Cashbook() {
       .reduce((sum, item) => sum + item.serviceCharge, 0);
   }, [inflowItems, fromDate, toDate]);
 
-  // Expenses limited to the selected period
+  // Expenses limited to the selected period (manual revenue entries live in the same table)
   const filteredExpenses = useMemo(() => {
-    return cashbookExpenses.filter((exp) => inRange(exp.dateIncurred));
+    return cashbookExpenses.filter((exp) => exp.entryType !== 'revenue' && inRange(exp.dateIncurred));
   }, [cashbookExpenses, fromDate, toDate]);
+
+  // Cash revenue added by hand, limited to the selected period
+  const manualRevenues = useMemo(() => {
+    return cashbookExpenses.filter((exp) => exp.entryType === 'revenue' && inRange(exp.dateIncurred));
+  }, [cashbookExpenses, fromDate, toDate]);
+
+  const totalManualRevenue = useMemo(() => {
+    return manualRevenues.reduce((sum, r) => sum + Number(r.amount), 0);
+  }, [manualRevenues]);
+
+  // Invoice revenues and manual revenues in one list, newest first
+  const revenueRows = useMemo(() => {
+    const rows = [
+      ...paidInflowItems.map((r) => ({
+        key: `inv-${r.invoiceId}`,
+        manualId: null as number | null,
+        ref: r.invoiceId,
+        name: r.customerName,
+        details: r.vehicleDetails,
+        amount: r.serviceCharge,
+        note: r.isCompanyLc ? 'Vehicle profit (Company LC)' : 'Service charge',
+        date: r.createdAt,
+      })),
+      ...manualRevenues.map((r) => ({
+        key: `man-${r.id}`,
+        manualId: r.id as number | null,
+        ref: 'Manual',
+        name: r.expenseType,
+        details: r.description || '—',
+        amount: Number(r.amount),
+        note: 'Cash revenue',
+        date: r.dateIncurred,
+      })),
+    ];
+    return rows.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }, [paidInflowItems, manualRevenues]);
+
+  // Realized Revenue = fully-paid invoice revenue + cash revenue added by hand
+  const totalInflow = invoiceInflow + totalManualRevenue;
 
   const totalOutflow = useMemo(() => {
     return filteredExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
@@ -135,12 +187,12 @@ export default function Cashbook() {
       await downloadCashbookReportPDF({
         from: fromDate,
         to: toDate,
-        revenues: paidInflowItems.map((r) => ({
-          invoiceId: r.invoiceId,
-          customerName: r.customerName,
-          vehicleDetails: r.vehicleDetails,
-          serviceCharge: r.serviceCharge,
-          createdAt: r.createdAt,
+        revenues: revenueRows.map((r) => ({
+          invoiceId: r.ref,
+          customerName: r.name,
+          vehicleDetails: r.details,
+          serviceCharge: r.amount,
+          createdAt: r.date,
         })),
         expenses: filteredExpenses.map((e) => ({
           id: e.id,
@@ -162,7 +214,13 @@ export default function Cashbook() {
   };
 
   const selectedCategory = watch('expenseType');
-  const deletableCategory = customCategories.find((c) => c.name === selectedCategory);
+  const deletableCategory = entryMode === 'expense' ? customCategories.find((c) => c.name === selectedCategory) : undefined;
+
+  const switchMode = (mode: EntryMode) => {
+    setEntryMode(mode);
+    setOneOff(null);
+    setValue('expenseType', defaultCategory(mode));
+  };
 
   /** The dropdown doubles as the "add" and "type your own" entry point */
   const handleCategoryChange = async (value: string) => {
@@ -244,30 +302,31 @@ export default function Cashbook() {
     setSubmitting(true);
     try {
       await addCashbookExpense({
+        entryType: entryMode,
         expenseType: data.expenseType,
         amount: Number(data.amount),
         description: data.description,
         dateIncurred: data.dateIncurred
       });
-      toast.success('Expense recorded successfully');
+      toast.success(entryMode === 'revenue' ? 'Revenue recorded successfully' : 'Expense recorded successfully');
       setOneOff(null);
       reset({
-        expenseType: 'Rent',
+        expenseType: defaultCategory(entryMode),
         amount: 0,
         description: '',
         dateIncurred: new Date().toISOString().split('T')[0]
       });
     } catch (e: any) {
-      toast.error(e.message || 'Failed to record expense');
+      toast.error(e.message || `Failed to record ${entryMode}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteExpense = async (id: number) => {
+  const handleDeleteExpense = async (id: number, kind: EntryMode = 'expense') => {
     const result = await Swal.fire({
-      title: 'Delete Expense?',
-      text: "You won't be able to recover this expense record!",
+      title: kind === 'revenue' ? 'Delete Revenue?' : 'Delete Expense?',
+      text: `You won't be able to recover this ${kind} record!`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#3b82f6',
@@ -278,9 +337,9 @@ export default function Cashbook() {
     if (result.isConfirmed) {
       try {
         await deleteCashbookExpense(id);
-        toast.success('Expense record deleted successfully');
+        toast.success(kind === 'revenue' ? 'Revenue record deleted successfully' : 'Expense record deleted successfully');
       } catch (e: any) {
-        toast.error(e.message || 'Failed to delete expense');
+        toast.error(e.message || `Failed to delete ${kind}`);
       }
     }
   };
@@ -290,7 +349,7 @@ export default function Cashbook() {
       <div className="flex-shrink-0 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-800 font-display">Corporate Cashbook</h2>
-          <p className="text-xs text-slate-500">Track company profit margins based on service charges and company-LC vehicle profits, offset by general business expenses</p>
+          <p className="text-xs text-slate-500">Track company profit margins based on service charges, company-LC vehicle profits and cash revenue, offset by general business expenses</p>
         </div>
 
         {/* Report period filter — applies to both tables and the totals above */}
@@ -344,7 +403,7 @@ export default function Cashbook() {
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Realized Revenue</span>
             <h3 className="text-2xl font-bold text-emerald-600 font-mono">{formatCurrency(totalInflow)}</h3>
             <p className="text-[10px] text-slate-400">
-              Paid service charges & vehicle profits.
+              Paid service charges, vehicle profits & cash revenue.
               {totalPendingInflow > 0 && ` (LKR ${totalPendingInflow.toLocaleString()} pending)`}
             </p>
           </div>
@@ -454,40 +513,61 @@ export default function Cashbook() {
                 Service Charge & Profit Revenues
               </h4>
               <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                {paidInflowItems.length} Sales
+                {revenueRows.length} Records
               </span>
             </div>
 
             <div className="overflow-auto overflow-y-auto flex-1 min-h-0">
-              {paidInflowItems.length === 0 ? (
+              {revenueRows.length === 0 ? (
                 <EmptyState title={fromDate || toDate ? 'No fully-paid revenues in the selected period' : 'No fully-paid revenues yet'} />
               ) : (
                 <table className="table min-w-full relative">
                   <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
                     <tr>
-                      <th>Invoice ID</th>
-                      <th>Customer Name</th>
-                      <th>Vehicle</th>
-                      <th>Payment Status</th>
+                      <th>Invoice / Ref</th>
+                      <th>Customer / Category</th>
+                      <th>Vehicle / Description</th>
+                      <th>Status</th>
                       <th className="text-right">Revenue</th>
+                      <th className="w-16 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paidInflowItems.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="font-semibold text-brand-600 text-xs">{item.invoiceId}</td>
-                        <td className="text-xs text-slate-700 font-medium">{item.customerName}</td>
-                        <td className="text-[11px] text-slate-500">{item.vehicleDetails}</td>
+                    {revenueRows.map((item) => (
+                      <tr key={item.key}>
+                        <td className="font-semibold text-brand-600 text-xs">
+                          {item.ref}
+                          {item.manualId !== null && (
+                            <div className="text-[10px] font-normal text-slate-400">{formatDate(item.date)}</div>
+                          )}
+                        </td>
+                        <td className="text-xs text-slate-700 font-medium">{item.name}</td>
+                        <td className="text-[11px] text-slate-500 max-w-xs truncate" title={item.details}>{item.details}</td>
                         <td>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            Fully Covered
-                          </span>
+                          {item.manualId === null ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              Fully Covered
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-100">
+                              Cash Received
+                            </span>
+                          )}
                         </td>
                         <td className="text-right font-semibold font-mono text-emerald-600 text-xs">
-                          {formatCurrency(item.serviceCharge)}
-                          <div className="text-[10px] font-sans font-normal text-slate-400">
-                            {item.isCompanyLc ? 'Vehicle profit (Company LC)' : 'Service charge'}
-                          </div>
+                          {formatCurrency(item.amount)}
+                          <div className="text-[10px] font-sans font-normal text-slate-400">{item.note}</div>
+                        </td>
+                        <td className="text-center">
+                          {item.manualId !== null && (
+                            <button
+                              onClick={() => handleDeleteExpense(item.manualId as number, 'revenue')}
+                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -504,14 +584,36 @@ export default function Cashbook() {
             <div>
               <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                 <Plus className="w-4 h-4 text-brand-600" />
-                Record Business Expense
+                {entryMode === 'revenue' ? 'Record Cash Revenue' : 'Record Business Expense'}
               </h4>
-              <p className="text-[10px] text-slate-400 mt-0.5">Deduct corporate operational costs from the cashbook profit margin</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {entryMode === 'revenue'
+                  ? 'Add cash income received outside invoices to the cashbook profit margin'
+                  : 'Deduct corporate operational costs from the cashbook profit margin'}
+              </p>
+            </div>
+
+            {/* Expense / Revenue switch */}
+            <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => switchMode('expense')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition ${entryMode === 'expense' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <ArrowDownRight className="w-3.5 h-3.5" /> Expense
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('revenue')}
+                className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition ${entryMode === 'revenue' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" /> Revenue
+              </button>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500 uppercase">Expense Category</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase">{entryMode === 'revenue' ? 'Revenue Category' : 'Expense Category'}</label>
 
                 {oneOff === null ? (
                   <div className="flex gap-2">
@@ -520,20 +622,33 @@ export default function Cashbook() {
                       onChange={(e) => handleCategoryChange(e.target.value)}
                       className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand-500 focus:bg-white transition"
                     >
-                      {BUILT_IN_CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                      {customCategories.length > 0 && (
-                        <optgroup label="Your categories">
-                          {customCategories.map((c) => (
-                            <option key={c.id} value={c.name}>{c.name}</option>
+                      {entryMode === 'revenue' ? (
+                        <>
+                          {REVENUE_CATEGORIES.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
                           ))}
-                        </optgroup>
+                          <optgroup label="&nbsp;">
+                            <option value={ONE_OFF}>✎  Type one just for this entry...</option>
+                          </optgroup>
+                        </>
+                      ) : (
+                        <>
+                          {BUILT_IN_CATEGORIES.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                          {customCategories.length > 0 && (
+                            <optgroup label="Your categories">
+                              {customCategories.map((c) => (
+                                <option key={c.id} value={c.name}>{c.name}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          <optgroup label="&nbsp;">
+                            <option value={ADD_NEW}>+  Add new category...</option>
+                            <option value={ONE_OFF}>✎  Type one just for this entry...</option>
+                          </optgroup>
+                        </>
                       )}
-                      <optgroup label="&nbsp;">
-                        <option value={ADD_NEW}>+  Add new category...</option>
-                        <option value={ONE_OFF}>✎  Type one just for this entry...</option>
-                      </optgroup>
                     </select>
 
                     {deletableCategory && (
@@ -564,7 +679,7 @@ export default function Cashbook() {
                       type="button"
                       onClick={() => {
                         setOneOff(null);
-                        setValue('expenseType', BUILT_IN_CATEGORIES[0].value);
+                        setValue('expenseType', defaultCategory(entryMode));
                       }}
                       title="Back to the category list"
                       className="px-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 transition flex-shrink-0"
@@ -608,7 +723,7 @@ export default function Cashbook() {
                 <textarea
                   {...register('description')}
                   rows={3}
-                  placeholder="e.g. Electricity bill for main office"
+                  placeholder={entryMode === 'revenue' ? 'e.g. Commission received from a partner' : 'e.g. Electricity bill for main office'}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 text-xs outline-none focus:border-brand-500 focus:bg-white transition"
                 />
               </div>
@@ -626,7 +741,7 @@ export default function Cashbook() {
                 ) : (
                   <>
                     <Plus className="w-3.5 h-3.5" />
-                    Record Expense
+                    {entryMode === 'revenue' ? 'Record Revenue' : 'Record Expense'}
                   </>
                 )}
               </button>

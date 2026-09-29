@@ -4,6 +4,7 @@ require_once __DIR__ . '/db.php';
 try {
     $sql = "CREATE TABLE IF NOT EXISTS cashbook_expenses (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        entry_type VARCHAR(20) NOT NULL DEFAULT 'expense',
         expense_type VARCHAR(100) NOT NULL,
         amount DECIMAL(15, 2) NOT NULL,
         description TEXT,

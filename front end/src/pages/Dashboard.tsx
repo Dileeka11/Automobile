@@ -36,8 +36,13 @@ export default function Dashboard() {
     return s;
   }, 0);
 
-  const totalOutflow = cashbookExpenses.reduce((s, exp) => s + Number(exp.amount), 0);
-  const totalRevenue = totalInflow - totalOutflow;
+  const manualRevenue = cashbookExpenses
+    .filter((exp) => exp.entryType === 'revenue')
+    .reduce((s, exp) => s + Number(exp.amount), 0);
+  const totalOutflow = cashbookExpenses
+    .filter((exp) => exp.entryType !== 'revenue')
+    .reduce((s, exp) => s + Number(exp.amount), 0);
+  const totalRevenue = totalInflow + manualRevenue - totalOutflow;
   const pendingInvoices = invoices.filter((i) => i.status === 'pending').length;
 
   const monthlyData = useMemo(() => {
