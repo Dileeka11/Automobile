@@ -90,8 +90,6 @@ export default function Invoices() {
   );
   const total = pricing.total;
   const isCompanyLc = lcOpenTypeVal === 'company';
-  // Company LC must be sold above the vehicle cost
-  const sellingPriceInvalid = isCompanyLc && !!selectedQuotation && sellingPriceVal <= pricing.cost;
 
   const paymentsSum = useMemo(() => payments.reduce((sum, p) => sum + Number(p.amount), 0), [payments]);
 
@@ -264,8 +262,6 @@ export default function Invoices() {
   // change, so the invoice table & PDF always reflect the yellow box.
   useEffect(() => {
     if (!modalOpen || !editingInvoice || !selectedQuotation || !paymentsLoaded) return;
-    // Don't persist a company selling price that is not above the cost — Save will reject it
-    if (sellingPriceInvalid) return;
     const advanceVal = Number(advance || 0);
     const lcOpenType = lcOpenTypeVal || null;
     const inSync =
@@ -290,7 +286,7 @@ export default function Invoices() {
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen, editingInvoice, selectedQuotation, paymentsLoaded, advance, isLcChecked, isTtChecked, lcOpenTypeVal, sellingPriceVal, vatPercentVal, sellingPriceInvalid, balance]);
+  }, [modalOpen, editingInvoice, selectedQuotation, paymentsLoaded, advance, isLcChecked, isTtChecked, lcOpenTypeVal, sellingPriceVal, vatPercentVal, balance]);
 
   const openAdd = () => {
     setEditingInvoice(null);
@@ -356,10 +352,6 @@ export default function Invoices() {
 
   const onSubmit = async (data: FormData) => {
     if (!selectedQuotation) { toast.error('Invalid quotation'); return; }
-    if (sellingPriceInvalid) {
-      toast.error(`Selling price must be higher than the vehicle cost (${formatCurrency(pricing.cost)})`);
-      return;
-    }
     
     const lcAmountVal = selectedQuotation.lcAmount || 0;
     const ttAmountVal = selectedQuotation.ttAmount || 0;
@@ -699,20 +691,17 @@ export default function Invoices() {
           {/* Company LC: vehicle is sold at a selling price + VAT; the profit goes to the cashbook */}
           {isCompanyLc && (
             <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 space-y-3">
-              <h4 className="text-sm font-bold text-yellow-900">Company LC — Selling Price & VAT</h4>
+              <h4 className="text-sm font-bold text-yellow-900">Company LC — Price & VAT</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Selling Price (LKR)</label>
+                  <label className="label">Price without VAT (LKR)</label>
                   <input
                     type="number"
                     step="0.01"
                     {...register('sellingPrice')}
-                    placeholder={selectedQuotation ? `More than ${pricing.cost.toLocaleString()}` : 'Enter selling price'}
-                    className={`input bg-yellow-100 border-yellow-400 font-semibold ${sellingPriceInvalid ? 'border-red-500' : ''}`}
+                    placeholder="Enter price without VAT"
+                    className="input bg-yellow-100 border-yellow-400 font-semibold"
                   />
-                  {sellingPriceInvalid && (
-                    <p className="text-xs text-red-600 mt-1">Must be higher than the vehicle cost ({formatCurrency(pricing.cost)})</p>
-                  )}
                 </div>
                 <div>
                   <label className="label">VAT Percentage (%)</label>
@@ -744,8 +733,8 @@ export default function Invoices() {
                     <span>Total Vehicle Price</span>
                     <span className="text-lg">{formatCurrency(pricing.total)}</span>
                   </div>
-                  {!sellingPriceInvalid && (
-                    <div className="flex justify-between text-xs text-emerald-700">
+                  {sellingPriceVal > 0 && (
+                    <div className={`flex justify-between text-xs ${pricing.profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                       <span>Profit (to cashbook once fully paid)</span>
                       <span className="font-semibold">{formatCurrency(pricing.profit)}</span>
                     </div>

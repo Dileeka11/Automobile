@@ -659,7 +659,7 @@ export function InvoiceDoc({ invoice, quotation, vehicle, make, includeAttachmen
             <>
               {/* Company LC: the customer is billed the selling price + VAT, not the cost breakdown */}
               <View style={s.tRow}>
-                <Text style={s.tCellLabel}>Vehicle Price</Text>
+                <Text style={s.tCellLabel}>Price without VAT</Text>
                 <Text style={s.tCellValue}>{formatCurrency(pricing.sellingPrice)}</Text>
               </View>
               <View style={[s.tRow, s.tRowAlt]}>
