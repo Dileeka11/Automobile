@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
-import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers, ChevronLeft, ChevronRight, X, Calculator } from 'lucide-react';
 import { useDataStore, toast } from '@/store';
 
 /** Built-in hero images, used until an admin uploads a replacement */
@@ -374,6 +374,9 @@ export default function Landing() {
               <a href="#services" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Services</a>
               <a href="#trust" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Why Us</a>
               <a href="#contact" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Contact</a>
+              <Link to="/tax-calculation" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 hover:text-rose-700 text-xs font-bold uppercase tracking-wider transition-colors duration-300">
+                <Calculator className="w-3.5 h-3.5" /> Tax Calculation
+              </Link>
             </div>
           </div>
         </div>
@@ -1118,6 +1121,7 @@ export default function Landing() {
                   { href: '#services', label: 'Brokerage Services' },
                   { href: '#trust', label: 'Why Choose Us' },
                   { href: '#about', label: 'Our Legacy' },
+                  { href: '/tax-calculation', label: 'Vehicle Tax Calculator' },
                 ].map((link) => (
                   <li key={link.href}>
                     <a href={link.href} className="group inline-flex items-center gap-2 hover:text-white hover:translate-x-1 transition-all duration-300">

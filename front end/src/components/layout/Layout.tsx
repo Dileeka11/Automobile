@@ -17,6 +17,9 @@ const titles: Record<string, string> = {
   '/admin/reports': 'Accounting & Reports',
   '/admin/cashbook': 'Corporate Cashbook',
   '/admin/leads': 'CRM Leads',
+  '/admin/website': 'Website Customize',
+  '/admin/feedback': 'Feedback Manage',
+  '/admin/tax-calculation': 'Tax Calculation',
   '/admin/users': 'User Priorities'
 };
 

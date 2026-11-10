@@ -16,6 +16,7 @@ import Users from '@/pages/Users';
 import Cashbook from '@/pages/Cashbook';
 import WebsiteCustomize from '@/pages/WebsiteCustomize';
 import FeedbackManage from '@/pages/FeedbackManage';
+import TaxCalculation from '@/pages/TaxCalculation';
 import { useDataStore } from '@/store';
 
 /**
@@ -34,6 +35,9 @@ export default function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
+        <Route path="/tax-calculation" element={<TaxCalculation />} />
+        <Route path="/tax_calculation" element={<Navigate to="/tax-calculation" replace />} />
+        <Route path="/tax-calculator" element={<Navigate to="/tax-calculation" replace />} />
         {/* Old bookmark — the login now lives at /admin */}
         <Route path="/login" element={<Navigate to="/admin" replace />} />
 
@@ -53,6 +57,8 @@ export default function App() {
             <Route path="leads" element={<Leads />} />
             <Route path="website" element={<WebsiteCustomize />} />
             <Route path="feedback" element={<FeedbackManage />} />
+            <Route path="tax-calculation" element={<TaxCalculation />} />
+            <Route path="tax_calculation" element={<Navigate to="/admin/tax-calculation" replace />} />
             <Route path="users" element={<Users />} />
           </Route>
         </Route>

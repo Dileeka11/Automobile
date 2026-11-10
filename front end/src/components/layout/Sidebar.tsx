@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, BookOpen, Inbox, Users, LogOut, UserCheck, Palette, MessageSquareQuote } from 'lucide-react';
+import { LayoutDashboard, Tag, Car, FileText, Receipt, Gauge, Ship, Landmark, BarChart3, BookOpen, Inbox, Users, LogOut, UserCheck, Palette, MessageSquareQuote, Calculator } from 'lucide-react';
 import { cn } from '@/utils';
 import { useDataStore } from '@/store';
 
@@ -17,6 +17,7 @@ const baseLinks = [
   { to: '/admin/leads', label: 'CRM Leads', icon: Inbox },
   { to: '/admin/website', label: 'Website Customize', icon: Palette },
   { to: '/admin/feedback', label: 'Feedback Manage', icon: MessageSquareQuote },
+  { to: '/admin/tax-calculation', label: 'Tax Calculation', icon: Calculator },
 ];
 
 interface Props { open: boolean; onClose: () => void; }
