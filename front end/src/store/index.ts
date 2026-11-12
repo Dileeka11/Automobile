@@ -99,6 +99,7 @@ interface DataState {
   currentUser: User | null;
   users: User[];
   login: (username: string, password: string) => Promise<void>;
+  verifySession: () => Promise<boolean>;
   logout: () => void;
   fetchUsers: () => Promise<void>;
   addUser: (u: Omit<User, 'id' | 'createdAt'> & { password?: string }) => Promise<void>;
@@ -106,7 +107,32 @@ interface DataState {
   deleteUser: (id: number) => Promise<void>;
 }
 
-export const useDataStore = create<DataState>((set) => ({
+// Purge legacy persistent localStorage login so nobody is auto-logged in without entering credentials
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('dn_user');
+  } catch {}
+}
+
+const getInitialSessionUser = (): User | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem('dn_session');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const loginTime = parsed?.loginTime || 0;
+    // Session limit: 2 hours maximum per session
+    if (Date.now() - loginTime > 2 * 60 * 60 * 1000) {
+      sessionStorage.removeItem('dn_session');
+      return null;
+    }
+    return parsed?.user || null;
+  } catch {
+    return null;
+  }
+};
+
+export const useDataStore = create<DataState>((set, get) => ({
   makeModels: [],
   vehicleModels: [],
   quotations: [],
@@ -121,7 +147,7 @@ export const useDataStore = create<DataState>((set) => ({
   dashboardData: null,
   loading: false,
 
-  currentUser: localStorage.getItem('dn_user') ? JSON.parse(localStorage.getItem('dn_user')!) : null,
+  currentUser: getInitialSessionUser(),
   users: [],
 
   fetchData: async () => {
@@ -458,16 +484,38 @@ export const useDataStore = create<DataState>((set) => ({
   },
 
   login: async (username, password) => {
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+    if (!cleanUser || !cleanPass) {
+      throw new Error('Username and password are required');
+    }
     const user = await apiFetch('/backend/api/auth.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: cleanUser, password: cleanPass }),
     });
-    localStorage.setItem('dn_user', JSON.stringify(user));
+    sessionStorage.setItem('dn_session', JSON.stringify({ user, loginTime: Date.now() }));
+    localStorage.removeItem('dn_user');
     set({ currentUser: user });
   },
 
+  verifySession: async () => {
+    const current = get().currentUser;
+    if (!current) return false;
+    try {
+      const verified = await apiFetch(
+        `/backend/api/auth.php?id=${current.id}&username=${encodeURIComponent(current.username)}`
+      );
+      set({ currentUser: verified });
+      return true;
+    } catch {
+      get().logout();
+      return false;
+    }
+  },
+
   logout: () => {
+    sessionStorage.removeItem('dn_session');
     localStorage.removeItem('dn_user');
     set({ currentUser: null });
   },

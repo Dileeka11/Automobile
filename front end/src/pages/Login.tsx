@@ -15,9 +15,28 @@ export default function Login() {
   });
 
   const onSubmit = async (data: any) => {
+    const username = (data.username || '').trim();
+    const password = (data.password || '').trim();
+
+    if (!username || !password) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Credentials Required',
+        text: 'Both username and password must be entered to access the administration panel.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#1a3a6e',
+        background: '#ffffff',
+        customClass: {
+          popup: 'rounded-2xl shadow-xl border border-slate-100',
+          confirmButton: 'px-5 py-2.5 rounded-xl font-semibold text-sm transition',
+        }
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      await login(data.username, data.password);
+      await login(username, password);
       toast.success('Successfully logged in!');
       navigate('/admin');
     } catch (e: any) {

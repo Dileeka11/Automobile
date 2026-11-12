@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import Landing from '@/pages/Landing';
@@ -17,15 +18,48 @@ import Cashbook from '@/pages/Cashbook';
 import WebsiteCustomize from '@/pages/WebsiteCustomize';
 import FeedbackManage from '@/pages/FeedbackManage';
 import TaxCalculation from '@/pages/TaxCalculation';
-import { useDataStore } from '@/store';
+import { useDataStore, toast } from '@/store';
 
 /**
- * The admin area is reached only by typing /admin — there is no link to it from
- * the public site. When nobody is signed in, /admin renders the login screen in
- * place (the URL stays /admin) instead of redirecting somewhere else.
+ * Strict authentication guard for the admin panel.
+ * Nobody can access admin without entering valid username & password.
+ * Session is kept in memory/sessionStorage only for the active browser session.
+ * Auto-logs out on inactivity (30 minutes) and verifies user validity on load.
  */
 function PrivateRoute() {
-  const currentUser = useDataStore((s) => s.currentUser);
+  const { currentUser, verifySession, logout } = useDataStore();
+
+  useEffect(() => {
+    if (currentUser) {
+      verifySession();
+    }
+  }, []);
+
+  // Inactivity timeout: automatically log out after 30 minutes of no user activity
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let timer: NodeJS.Timeout;
+    const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        logout();
+        toast.info('Session timed out due to inactivity. Please log in again.');
+      }, INACTIVITY_LIMIT);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach((ev) => window.addEventListener(ev, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((ev) => window.removeEventListener(ev, resetTimer));
+    };
+  }, [currentUser, logout]);
+
   return currentUser ? <Outlet /> : <Login />;
 }
 
