@@ -44,6 +44,19 @@ function nullableFloat($v) {
     return ($v === null || $v === '') ? null : (float)$v;
 }
 
+// Dates the company paid each quotation cost item, as {"lc":"YYYY-MM-DD", ...}.
+// Accepts an array or a JSON string; drops unknown keys and blank/invalid dates.
+function sanitizeCostPayments($raw) {
+    if (is_string($raw)) $raw = json_decode($raw, true);
+    if (!is_array($raw)) return null;
+    $out = [];
+    foreach (['lc', 'tt', 'tax', 'clearing', 'dmi'] as $key) {
+        $d = trim((string)($raw[$key] ?? ''));
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) $out[$key] = $d;
+    }
+    return $out ? json_encode($out) : null;
+}
+
 // Shape an invoices row (joined with the installment sum as tt_amount) for the API.
 function formatInvoiceRow($pdo, $row) {
     $picStmt = $pdo->prepare("SELECT id, file_path FROM invoice_yard_pictures WHERE invoice_id = ?");
@@ -54,6 +67,7 @@ function formatInvoiceRow($pdo, $row) {
         'quotationId' => $row['quotation_id'],
         'ttAmount' => (float)$row['tt_amount'],
         'advanceAmount' => (float)$row['advance_amount'],
+        'advanceDate' => $row['advance_date'] ?? null,
         'balance' => (float)$row['balance'],
         'isLcComplete' => (bool)$row['is_lc_complete'],
         'lcNumber' => $row['lc_number'],
@@ -61,6 +75,7 @@ function formatInvoiceRow($pdo, $row) {
         'sellingPrice' => isset($row['selling_price']) ? (float)$row['selling_price'] : null,
         'vatPercent' => isset($row['vat_percent']) ? (float)$row['vat_percent'] : null,
         'isTtComplete' => (bool)$row['is_tt_complete'],
+        'costPayments' => (object)(json_decode($row['cost_payments'] ?? '', true) ?: []),
         'status' => strtolower($row['status']),
         'lcCopyPath' => $row['lc_copy_path'],
         'inspectionCertificatePath' => $row['inspection_certificate_path'],
@@ -253,6 +268,14 @@ switch ($method) {
                     $fields[] = "is_tt_complete = ?";
                     $params[] = filter_var($_POST['isTtComplete'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
                 }
+                if (isset($_POST['advanceDate'])) {
+                    $fields[] = "advance_date = ?";
+                    $params[] = empty($_POST['advanceDate']) ? null : $_POST['advanceDate'];
+                }
+                if (isset($_POST['costPayments'])) {
+                    $fields[] = "cost_payments = ?";
+                    $params[] = sanitizeCostPayments($_POST['costPayments']);
+                }
                 if (isset($_POST['etdDate'])) {
                     $fields[] = "etd_date = ?";
                     $params[] = empty($_POST['etdDate']) ? null : $_POST['etdDate'];
@@ -316,7 +339,7 @@ switch ($method) {
             $dueDate = date('Y-m-d', strtotime('+3 days'));
             $status = strtoupper($data['status'] ?? 'PENDING');
 
-            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, lc_number, lc_open_type, selling_price, vat_percent, is_tt_complete, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO invoices (id, vehicle_id, quotation_id, invoice_type, total_amount, tt_amount, advance_amount, balance, is_lc_complete, lc_number, lc_open_type, selling_price, vat_percent, is_tt_complete, cost_payments, advance_date, due_date, status, etd_date, arrival_date) VALUES (?, ?, ?, 'Advance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             
             $totalAmount = ($data['advanceAmount'] ?? 0) + ($data['balance'] ?? 0);
 
@@ -334,6 +357,8 @@ switch ($method) {
                 nullableFloat($data['sellingPrice'] ?? null),
                 nullableFloat($data['vatPercent'] ?? null),
                 isset($data['isTtComplete']) ? ($data['isTtComplete'] ? 1 : 0) : 0,
+                sanitizeCostPayments($data['costPayments'] ?? null),
+                empty($data['advanceDate']) ? null : $data['advanceDate'],
                 $dueDate,
                 $status,
                 empty($data['etdDate']) ? null : $data['etdDate'],
@@ -400,6 +425,14 @@ switch ($method) {
             if (isset($data['isTtComplete'])) {
                 $fields[] = "is_tt_complete = ?";
                 $params[] = $data['isTtComplete'] ? 1 : 0;
+            }
+            if (array_key_exists('advanceDate', $data)) {
+                $fields[] = "advance_date = ?";
+                $params[] = empty($data['advanceDate']) ? null : $data['advanceDate'];
+            }
+            if (array_key_exists('costPayments', $data)) {
+                $fields[] = "cost_payments = ?";
+                $params[] = sanitizeCostPayments($data['costPayments']);
             }
             if (isset($data['etdDate'])) {
                 $fields[] = "etd_date = ?";

@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X, Undo2 } from 'lucide-react';
-import { formatCurrency, formatDate, cashbookRevenue, cashbookLoss } from '@/utils';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, ArrowLeftRight, Wallet, Landmark, Loader2, FileDown, X, Undo2 } from 'lucide-react';
+import { formatCurrency, formatDate, cashbookRevenue, cashbookLoss, COST_ITEMS } from '@/utils';
+import { InvoicePayment } from '@/types';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCashbookReportPDF } from '@/components/pdf/CashbookReportPDF';
 
 const CATEGORY_API = '/backend/api/expense_categories.php';
+const PAYMENTS_API = '/backend/api/invoice_payments.php';
 
 /** Categories that ship with the app and cannot be removed */
 const BUILT_IN_CATEGORIES = [
@@ -28,6 +30,11 @@ const REVENUE_CATEGORIES = [
 ];
 
 type EntryMode = 'expense' | 'revenue';
+type LedgerView = EntryMode | 'cashflow';
+
+/** One movement of real cash: a customer payment in, or a company payment out */
+type CashRow = { key: string; date: string; ref: string; party: string; details: string; cashIn: number; cashOut: number };
+
 const defaultCategory = (mode: EntryMode) => (mode === 'revenue' ? REVENUE_CATEGORIES[0].value : BUILT_IN_CATEGORIES[0].value);
 
 /** Sentinel values for the two action rows at the bottom of the dropdown */
@@ -58,7 +65,16 @@ export default function Cashbook() {
   // The form records either an expense or cash revenue added by hand
   const [entryMode, setEntryMode] = useState<EntryMode>('expense');
   // Which list the ledger card shows
-  const [ledgerView, setLedgerView] = useState<EntryMode>('expense');
+  const [ledgerView, setLedgerView] = useState<LedgerView>('expense');
+
+  // Every customer installment across all invoices — part of the cash flow's Cash In
+  const [installments, setInstallments] = useState<InvoicePayment[]>([]);
+  useEffect(() => {
+    fetch(PAYMENTS_API)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => setInstallments(Array.isArray(rows) ? rows : []))
+      .catch(() => { /* cash flow then shows advances only */ });
+  }, [invoices]);
 
   const loadCategories = async () => {
     try {
@@ -203,6 +219,57 @@ export default function Cashbook() {
     return totalInflow - totalOutflow;
   }, [totalInflow, totalOutflow]);
 
+  // Cash flow: every payment on the day it happened, separate from the profit view above.
+  //  In  = customer installments (or, when there are none, the typed advance on its paid date / the invoice date) + manual revenue
+  //  Out = invoice cost items the company paid (dated on the invoice) + manual expenses
+  // The automatic vehicle-loss rows are an accounting figure, not cash, so they are left out.
+  const cashFlowRows = useMemo(() => {
+    const rows: CashRow[] = [];
+    const paidByInvoice = new Map<string, InvoicePayment[]>();
+    installments.forEach((p) => paidByInvoice.set(p.invoiceId, [...(paidByInvoice.get(p.invoiceId) || []), p]));
+
+    invoices.forEach((invoice) => {
+      const q = quotations.find((x) => x.id === invoice.quotationId);
+      const party = q?.name || 'N/A';
+      const paid = paidByInvoice.get(invoice.id) || [];
+      if (paid.length > 0) {
+        paid.forEach((p) => rows.push({
+          key: `pay-${p.id}`, date: p.paymentDate, ref: invoice.id, party,
+          details: p.notes ? `Installment — ${p.notes}` : 'Installment',
+          cashIn: Number(p.amount), cashOut: 0,
+        }));
+      } else if (Number(invoice.advanceAmount) > 0) {
+        rows.push({
+          key: `adv-${invoice.id}`, date: invoice.advanceDate || String(invoice.createdAt).slice(0, 10), ref: invoice.id, party,
+          details: 'Advance', cashIn: Number(invoice.advanceAmount), cashOut: 0,
+        });
+      }
+      if (q) {
+        COST_ITEMS.forEach((c) => {
+          const date = invoice.costPayments?.[c.key];
+          const amount = c.amount(q);
+          if (date && amount > 0) {
+            rows.push({ key: `cost-${invoice.id}-${c.key}`, date, ref: invoice.id, party, details: c.label, cashIn: 0, cashOut: amount });
+          }
+        });
+      }
+    });
+
+    cashbookExpenses.forEach((e) => {
+      const isRevenue = e.entryType === 'revenue';
+      rows.push({
+        key: `man-${e.id}`, date: e.dateIncurred, ref: 'Manual', party: e.expenseType, details: e.description || '—',
+        cashIn: isRevenue ? Number(e.amount) : 0, cashOut: isRevenue ? 0 : Number(e.amount),
+      });
+    });
+
+    return rows.filter((r) => inRange(r.date)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }, [invoices, quotations, installments, cashbookExpenses, fromDate, toDate]);
+
+  const cashIn = useMemo(() => cashFlowRows.reduce((sum, r) => sum + r.cashIn, 0), [cashFlowRows]);
+  const cashOut = useMemo(() => cashFlowRows.reduce((sum, r) => sum + r.cashOut, 0), [cashFlowRows]);
+  const cashBalance = cashIn - cashOut;
+
   const handleGenerateReport = async () => {
     if (fromDate && toDate && fromDate > toDate) {
       toast.error('"From" date must be before the "To" date');
@@ -230,6 +297,10 @@ export default function Cashbook() {
         totalInflow,
         totalOutflow,
         netProfit,
+        cashFlow: cashFlowRows,
+        cashIn,
+        cashOut,
+        cashBalance,
       });
       toast.success('Cashbook report generated');
     } catch {
@@ -466,6 +537,32 @@ export default function Cashbook() {
         </div>
       </div>
 
+      {/* Cash flow: real money in and out, payment by payment */}
+      <div className="flex-shrink-0 bg-slate-50 rounded-2xl border border-slate-200 px-5 py-3 flex flex-wrap items-center gap-x-8 gap-y-2">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <ArrowLeftRight className="w-3.5 h-3.5" /> Cash Flow
+        </span>
+        <div>
+          <span className="text-[10px] text-slate-400 uppercase mr-2">Cash In</span>
+          <span className="font-mono font-bold text-emerald-600 text-sm">{formatCurrency(cashIn)}</span>
+        </div>
+        <div>
+          <span className="text-[10px] text-slate-400 uppercase mr-2">Cash Out</span>
+          <span className="font-mono font-bold text-rose-600 text-sm">{formatCurrency(cashOut)}</span>
+        </div>
+        <div>
+          <span className="text-[10px] text-slate-400 uppercase mr-2">Cash Balance</span>
+          <span className={`font-mono font-bold text-sm ${cashBalance >= 0 ? 'text-brand-600' : 'text-red-600'}`}>{formatCurrency(cashBalance)}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setLedgerView('cashflow')}
+          className="ml-auto text-xs font-semibold text-brand-600 hover:underline"
+        >
+          View cash flow
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
         {/* Left Columns - Ledger (expenses / revenues, switched by the header toggle) */}
         <div className="lg:col-span-2 flex flex-col min-h-0">
@@ -474,16 +571,18 @@ export default function Cashbook() {
               <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
                 {ledgerView === 'revenue' ? (
                   <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                ) : ledgerView === 'cashflow' ? (
+                  <ArrowLeftRight className="w-4 h-4 text-brand-600" />
                 ) : (
                   <Landmark className="w-4 h-4 text-brand-600" />
                 )}
-                {ledgerView === 'revenue' ? 'Revenues Ledger' : 'Expenses Ledger'}
+                {ledgerView === 'revenue' ? 'Revenues Ledger' : ledgerView === 'cashflow' ? 'Cash Flow Ledger' : 'Expenses Ledger'}
                 <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full font-medium font-mono">
-                  {ledgerView === 'revenue' ? revenueRows.length : filteredExpenses.length} Records
+                  {ledgerView === 'revenue' ? revenueRows.length : ledgerView === 'cashflow' ? cashFlowRows.length : filteredExpenses.length} Records
                 </span>
               </h4>
 
-              <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100 rounded-xl">
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setLedgerView('expense')}
@@ -499,6 +598,14 @@ export default function Cashbook() {
                 >
                   <ArrowUpRight className="w-3.5 h-3.5" /> Revenues
                   <span className="font-mono">{formatCurrency(totalInflow)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLedgerView('cashflow')}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${ledgerView === 'cashflow' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <ArrowLeftRight className="w-3.5 h-3.5" /> Cash Flow
+                  <span className="font-mono">{formatCurrency(cashBalance)}</span>
                 </button>
               </div>
             </div>
@@ -550,6 +657,39 @@ export default function Cashbook() {
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              ) : ledgerView === 'cashflow' ? (
+                cashFlowRows.length === 0 ? (
+                  <EmptyState title={fromDate || toDate ? 'No cash movements in the selected period' : 'No cash movements yet'} />
+                ) : (
+                  <table className="table min-w-full relative">
+                    <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
+                      <tr>
+                        <th>Date</th>
+                        <th>Invoice / Ref</th>
+                        <th>Customer / Category</th>
+                        <th>Details</th>
+                        <th className="text-right">Cash In</th>
+                        <th className="text-right">Cash Out</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cashFlowRows.map((r) => (
+                        <tr key={r.key}>
+                          <td className="text-slate-600 text-xs whitespace-nowrap">{formatDate(r.date)}</td>
+                          <td className="font-semibold text-brand-600 text-xs whitespace-nowrap">{r.ref}</td>
+                          <td className="text-xs text-slate-700 font-medium">{r.party}</td>
+                          <td className="text-[11px] text-slate-500 max-w-xs truncate" title={r.details}>{r.details}</td>
+                          <td className="text-right font-semibold font-mono text-emerald-600 text-xs whitespace-nowrap">
+                            {r.cashIn > 0 ? formatCurrency(r.cashIn) : ''}
+                          </td>
+                          <td className="text-right font-semibold font-mono text-rose-600 text-xs whitespace-nowrap">
+                            {r.cashOut > 0 ? formatCurrency(r.cashOut) : ''}
                           </td>
                         </tr>
                       ))}

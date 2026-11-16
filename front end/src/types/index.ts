@@ -41,11 +41,18 @@ export interface Quotation {
 
 export type InvoiceStatus = 'pending' | 'partial' | 'paid';
 
+/** Quotation cost items the company pays out (LC, Other Payment, Tax, Clearing, DMI) */
+export type CostKey = 'lc' | 'tt' | 'tax' | 'clearing' | 'dmi';
+/** Date (YYYY-MM-DD) the company paid each cost item; a dated item is Cash Out in the cashbook */
+export type CostPayments = Partial<Record<CostKey, string>>;
+
 export interface Invoice {
   id: string;
   quotationId: string;
   ttAmount: number;
   advanceAmount: number;
+  /** Day the customer paid the advance (cashbook Cash In); falls back to the invoice date */
+  advanceDate?: string | null;
   balance: number;
   status: InvoiceStatus;
   isLcComplete?: boolean;
@@ -56,6 +63,7 @@ export interface Invoice {
   /** Company LC only — VAT % charged on the selling price */
   vatPercent?: number | null;
   isTtComplete?: boolean;
+  costPayments?: CostPayments;
   lcCopyPath?: string | null;
   inspectionCertificatePath?: string | null;
   exportCertificatePath?: string | null;

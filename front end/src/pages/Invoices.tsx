@@ -5,12 +5,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2, Search, Eye, Printer, Receipt, CheckCircle2, Edit, AlertTriangle, Undo, FileSignature } from 'lucide-react';
 import { useDataStore, toast } from '@/store';
-import { Invoice, InvoicePayment } from '@/types';
+import { CostPayments, Invoice, InvoicePayment } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
 import StatusBadge from '@/components/ui/Badge';
-import { formatCurrency, formatDate, invoiceSettlement, invoicePricing } from '@/utils';
+import { formatCurrency, formatDate, invoiceSettlement, invoicePricing, COST_ITEMS } from '@/utils';
 import { InvoicePDFViewer, downloadInvoicePDF } from '@/components/pdf/InvoicePDF';
 import {
   ConsolidatedReceiptPDFViewer,
@@ -24,6 +24,7 @@ const schema = z.object({
   quotationId: z.string().min(1, 'Select a quotation'),
   ttAmount: z.coerce.number().min(0),
   advanceAmount: z.coerce.number().min(0),
+  advanceDate: z.string().optional().nullable(),
   status: z.enum(['pending', 'partial', 'paid']),
   isLcComplete: z.boolean().default(false),
   lcNumber: z.string().optional().nullable(),
@@ -62,12 +63,15 @@ export default function Invoices() {
   const [viewingReceipt, setViewingReceipt] = useState<boolean>(false);
   const [viewingInstallmentSlip, setViewingInstallmentSlip] = useState<InvoicePayment | null>(null);
   
+  // Date the company paid each quotation cost item — becomes Cash Out in the cashbook
+  const [costPayments, setCostPayments] = useState<CostPayments>({});
+
   const [includeAttachmentsInView, setIncludeAttachmentsInView] = useState(true);
   const [leaseInvoiceOpen, setLeaseInvoiceOpen] = useState(false);
 
   const { register, handleSubmit, reset, control, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' },
+    defaultValues: { quotationId: '', ttAmount: 0, advanceAmount: 0, advanceDate: '', status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' },
   });
 
   const selectedQId = useWatch({ control, name: 'quotationId' });
@@ -290,7 +294,7 @@ export default function Invoices() {
 
   const openAdd = () => {
     setEditingInvoice(null);
-    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' });
+    reset({ quotationId: '', ttAmount: 0, advanceAmount: 0, advanceDate: '', status: 'pending', isLcComplete: false, lcNumber: '', lcOpenType: '', sellingPrice: 0, vatPercent: DEFAULT_VAT_PERCENT, isTtComplete: false, etdDate: '', arrivalDate: '' });
     setLcCopyFile(null);
     setInspectionCertificateFile(null);
     setYardPicturesFiles([]);
@@ -299,6 +303,7 @@ export default function Invoices() {
     setPendingDeleteYardPictureIds([]);
     setPayments([]); // Clear payments for new invoice
     setPaymentsLoaded(false);
+    setCostPayments({});
     setModalOpen(true);
   };
 
@@ -308,6 +313,7 @@ export default function Invoices() {
       quotationId: i.quotationId,
       ttAmount: i.ttAmount,
       advanceAmount: i.advanceAmount,
+      advanceDate: i.advanceDate || '',
       status: i.status,
       isLcComplete: !!i.isLcComplete,
       lcNumber: i.lcNumber || '',
@@ -324,6 +330,7 @@ export default function Invoices() {
     setPendingDeleteLcCopy(false);
     setPendingDeleteInspectionCertificate(false);
     setPendingDeleteYardPictureIds([]);
+    setCostPayments(i.costPayments || {});
 
     // Fetch payments for this invoice
     setPaymentsLoaded(false);
@@ -373,6 +380,7 @@ export default function Invoices() {
         formData.append('quotationId', data.quotationId);
         formData.append('ttAmount', String(data.ttAmount));
         formData.append('advanceAmount', String(data.advanceAmount));
+        formData.append('advanceDate', data.advanceDate || '');
         formData.append('balance', String(balanceVal));
         formData.append('status', data.status);
         formData.append('isLcComplete', String(!!data.isLcComplete));
@@ -381,6 +389,7 @@ export default function Invoices() {
         formData.append('sellingPrice', String(data.sellingPrice || 0));
         formData.append('vatPercent', String(data.vatPercent || 0));
         formData.append('isTtComplete', String(!!data.isTtComplete));
+        formData.append('costPayments', JSON.stringify(costPayments));
         formData.append('etdDate', data.etdDate || '');
         formData.append('arrivalDate', data.arrivalDate || '');
 
@@ -413,6 +422,7 @@ export default function Invoices() {
           quotationId: data.quotationId,
           ttAmount: data.ttAmount,
           advanceAmount: data.advanceAmount,
+          advanceDate: data.advanceDate || null,
           balance: balanceVal,
           status: data.status,
           isLcComplete: !!data.isLcComplete,
@@ -421,6 +431,7 @@ export default function Invoices() {
           sellingPrice: data.sellingPrice || 0,
           vatPercent: data.vatPercent || 0,
           isTtComplete: !!data.isTtComplete,
+          costPayments,
           etdDate: data.etdDate,
           arrivalDate: data.arrivalDate,
         });
@@ -688,6 +699,37 @@ export default function Invoices() {
             </div>
           </div>
 
+          {/* Company payments: each cost item given a paid date is Cash Out in the cashbook on that date */}
+          {selectedQuotation && (
+            <div className="border-t pt-4 space-y-3">
+              <div>
+                <h4 className="text-sm font-bold text-slate-800">Company Payments (Cashbook Cash Out)</h4>
+                <p className="text-[11px] text-slate-500">
+                  Set the date the company paid each item. Leave it blank if the company has not paid it, or if the customer paid it directly.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {COST_ITEMS.filter((c) => c.amount(selectedQuotation) > 0).map((c) => (
+                  <div key={c.key} className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+                    <div className="text-sm text-slate-700">
+                      {c.label}
+                      <span className="ml-2 font-mono text-xs text-slate-500">{formatCurrency(c.amount(selectedQuotation))}</span>
+                    </div>
+                    <input
+                      type="date"
+                      value={costPayments[c.key] || ''}
+                      onChange={(e) => setCostPayments((p) => ({ ...p, [c.key]: e.target.value }))}
+                      className={`input py-1.5 text-xs w-40 ${costPayments[c.key] ? 'border-rose-300 bg-rose-50/50' : ''}`}
+                    />
+                    <span className={`text-[10px] font-semibold w-14 ${costPayments[c.key] ? 'text-rose-600' : 'text-slate-400'}`}>
+                      {costPayments[c.key] ? 'Paid' : 'Not paid'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Company LC: vehicle is sold at a selling price + VAT; the profit goes to the cashbook */}
           {isCompanyLc && (
             <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 space-y-3">
@@ -744,10 +786,19 @@ export default function Invoices() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="label">Advance Amount (LKR)</label>
               <input type="number" step="0.01" {...register('advanceAmount')} placeholder="Enter Advance Amount (e.g. 200000)" className="input" />
+            </div>
+            <div>
+              <label className="label">Advance Paid Date</label>
+              <input type="date" {...register('advanceDate')} className="input" />
+              <p className="text-[10px] text-slate-400 mt-1">
+                {payments.length > 0
+                  ? 'Installments are recorded, so the cashbook uses their dates instead.'
+                  : 'Cashbook Cash In date. Blank = invoice date.'}
+              </p>
             </div>
             <div>
               <label className="label">Status</label>
@@ -757,7 +808,7 @@ export default function Invoices() {
                 <option value="paid">Paid</option>
               </select>
             </div>
-            <div className="flex items-end md:col-span-2">
+            <div className="flex items-end md:col-span-3">
               <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
                 {selectedQuotation && (isLcChecked || isTtChecked || payments.length > 0) && (
                   <div className="space-y-1 text-xs text-amber-700 pb-2 border-b border-amber-200">

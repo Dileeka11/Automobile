@@ -1,4 +1,4 @@
-import { Quotation } from '@/types';
+import { CostKey, Quotation } from '@/types';
 
 export const generateId = (prefix = ''): string =>
   `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`.toUpperCase();
@@ -30,6 +30,15 @@ export const formatDateTime = (iso: string): string =>
 /** CIF value is shown for reference only — it is never part of the total cost. */
 export const quotationTotal = (q: Quotation): number =>
   (q.lcAmount || 0) + (q.ttAmount || 0) + (q.taxAmount || 0) + (q.serviceCharge || 0) + (q.clearingCharge || 0) + (q.dmiCharge || 0);
+
+/** Quotation cost items the company pays out; each one given a paid date on the invoice is cashbook Cash Out. */
+export const COST_ITEMS: { key: CostKey; label: string; amount: (q: Quotation) => number }[] = [
+  { key: 'lc', label: 'LC Amount', amount: (q) => q.lcAmount || 0 },
+  { key: 'tt', label: 'Other Payment', amount: (q) => q.ttAmount || 0 },
+  { key: 'tax', label: 'Tax Amount', amount: (q) => q.taxAmount || 0 },
+  { key: 'clearing', label: 'Clearing Charge', amount: (q) => q.clearingCharge || 0 },
+  { key: 'dmi', label: 'DMI Charge', amount: (q) => q.dmiCharge || 0 },
+];
 
 export interface SettlementInput {
   total: number;

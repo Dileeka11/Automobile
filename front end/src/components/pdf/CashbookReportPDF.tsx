@@ -29,6 +29,16 @@ export type CashbookExpenseRow = {
   dateIncurred: string;
 };
 
+export type CashFlowRow = {
+  key: string;
+  date: string;
+  ref: string;
+  party: string;
+  details: string;
+  cashIn: number;
+  cashOut: number;
+};
+
 export type CashbookReportProps = {
   from: string;
   to: string;
@@ -37,6 +47,10 @@ export type CashbookReportProps = {
   totalInflow: number;
   totalOutflow: number;
   netProfit: number;
+  cashFlow: CashFlowRow[];
+  cashIn: number;
+  cashOut: number;
+  cashBalance: number;
 };
 
 const s = StyleSheet.create({
@@ -129,8 +143,10 @@ const periodLabel = (from: string, to: string) => {
 
 export function CashbookReportDoc({
   from, to, revenues, expenses, totalInflow, totalOutflow, netProfit,
+  cashFlow, cashIn, cashOut, cashBalance,
 }: CashbookReportProps) {
   const positive = netProfit >= 0;
+  const cashPositive = cashBalance >= 0;
 
   return (
     <Document>
@@ -232,6 +248,51 @@ export function CashbookReportDoc({
         >
           <Text style={[s.netLabel, { color: positive ? GREEN : RED }]}>NET MARGIN / PROFIT</Text>
           <Text style={[s.netValue, { color: positive ? GREEN : RED }]}>{formatCurrency(netProfit)}</Text>
+        </View>
+
+        {/* ── Cash Flow: every payment in and out on the day it happened ── */}
+        <Text style={s.sectionTitle}>Cash Flow ({cashFlow.length})</Text>
+        <View style={s.summaryRow}>
+          <View style={s.summaryCard}>
+            <Text style={s.summaryLabel}>Cash In</Text>
+            <Text style={[s.summaryValue, { color: GREEN }]}>{formatCurrency(cashIn)}</Text>
+          </View>
+          <View style={s.summaryCard}>
+            <Text style={s.summaryLabel}>Cash Out</Text>
+            <Text style={[s.summaryValue, { color: RED }]}>{formatCurrency(cashOut)}</Text>
+          </View>
+          <View style={s.summaryCard}>
+            <Text style={s.summaryLabel}>Cash Balance</Text>
+            <Text style={[s.summaryValue, { color: cashPositive ? NAVY : RED }]}>{formatCurrency(cashBalance)}</Text>
+          </View>
+        </View>
+        <View style={[s.table, { marginTop: 4 }]}>
+          <View style={s.tHead}>
+            <Text style={[s.tHeadCell, { flex: 1 }]}>Date</Text>
+            <Text style={[s.tHeadCell, { flex: 1 }]}>Ref</Text>
+            <Text style={[s.tHeadCell, { flex: 1.5 }]}>Customer / Category</Text>
+            <Text style={[s.tHeadCell, { flex: 2 }]}>Details</Text>
+            <Text style={[s.tHeadCell, { flex: 1.2, textAlign: 'right' }]}>Cash In</Text>
+            <Text style={[s.tHeadCell, { flex: 1.2, textAlign: 'right' }]}>Cash Out</Text>
+          </View>
+          {cashFlow.length === 0 ? (
+            <Text style={s.emptyNote}>No cash movements in this period.</Text>
+          ) : (
+            cashFlow.map((r, i) => (
+              <View key={r.key} style={[s.tRow, ...(i % 2 ? [s.tRowAlt] : [])]} wrap={false}>
+                <Text style={[s.cell, { flex: 1 }]}>{formatDate(r.date)}</Text>
+                <Text style={[s.cell, { flex: 1 }]}>{r.ref}</Text>
+                <Text style={[s.cell, { flex: 1.5 }]}>{r.party}</Text>
+                <Text style={[s.cell, { flex: 2 }]}>{r.details}</Text>
+                <Text style={[s.cellRight, { flex: 1.2, color: GREEN }]}>{r.cashIn > 0 ? formatCurrency(r.cashIn) : ''}</Text>
+                <Text style={[s.cellRight, { flex: 1.2, color: RED }]}>{r.cashOut > 0 ? formatCurrency(r.cashOut) : ''}</Text>
+              </View>
+            ))
+          )}
+          <View style={s.totalRow}>
+            <Text style={s.totalLabel}>Cash Balance (In - Out)</Text>
+            <Text style={s.totalValue}>{formatCurrency(cashBalance)}</Text>
+          </View>
         </View>
 
         {/* ── Footer ── */}

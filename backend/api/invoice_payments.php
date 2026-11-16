@@ -77,10 +77,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 switch ($method) {
     case 'GET':
         $invoiceId = $_GET['invoiceId'] ?? null;
-        if (!$invoiceId) {
-            sendError("Invoice ID is required");
-        }
         try {
+            // No invoiceId: every installment across all invoices (cashbook Cash In)
+            if (!$invoiceId) {
+                $stmt = $pdo->query("SELECT id, invoice_id AS invoiceId, amount, payment_date AS paymentDate, notes, created_at AS createdAt FROM invoice_payments ORDER BY payment_date DESC, id DESC");
+                sendJson($stmt->fetchAll());
+            }
             $stmt = $pdo->prepare("SELECT id, invoice_id AS invoiceId, amount, payment_date AS paymentDate, notes, created_at AS createdAt FROM invoice_payments WHERE invoice_id = ? ORDER BY payment_date DESC, id DESC");
             $stmt->execute([$invoiceId]);
             sendJson($stmt->fetchAll());

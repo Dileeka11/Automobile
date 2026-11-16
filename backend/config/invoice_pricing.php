@@ -3,7 +3,9 @@
 // without running the migration still works. Kept out of db.php because the
 // deploy never uploads db.php (the server keeps its own copy).
 function ensureInvoicePricingColumns($pdo) {
-    $cols = ['selling_price' => 'DECIMAL(15,2) NULL', 'vat_percent' => 'DECIMAL(5,2) NULL'];
+    // cost_payments: JSON of the dates the company paid each quotation cost item (cashbook Cash Out)
+    // advance_date: the day the customer paid the advance (cashbook Cash In)
+    $cols = ['selling_price' => 'DECIMAL(15,2) NULL', 'vat_percent' => 'DECIMAL(5,2) NULL', 'cost_payments' => 'TEXT NULL', 'advance_date' => 'DATE NULL'];
     foreach ($cols as $col => $def) {
         try {
             if (!$pdo->query("SHOW COLUMNS FROM invoices LIKE '$col'")->fetch()) {
