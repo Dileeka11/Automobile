@@ -16,7 +16,28 @@ import {
   Receipt
 } from 'lucide-react';
 
-export type FuelType = 'Petrol' | 'Diesel' | 'Hybrid Petrol' | 'Hybrid Diesel' | 'Electric';
+export type FuelType =
+  | 'Petrol'
+  | 'Diesel'
+  | 'Electric'
+  | 'Petrol Hybrid'
+  | 'Diesel Hybrid'
+  | 'E-Power Hybrid';
+
+/** Vehicle age bucket – only used for Electric / E-Power Hybrid (excise is age dependent). */
+export type VehicleAge = 'less' | 'more';
+
+export const FUEL_TYPES: FuelType[] = [
+  'Petrol',
+  'Diesel',
+  'Electric',
+  'Petrol Hybrid',
+  'Diesel Hybrid',
+  'E-Power Hybrid',
+];
+
+/** Electric & E-Power Hybrid are taxed per kW of motor power, everything else per cc. */
+export const isKwFuel = (fuel: FuelType | '') => fuel === 'Electric' || fuel === 'E-Power Hybrid';
 
 interface TaxBreakdownRow {
   type: string;
@@ -27,252 +48,227 @@ interface TaxBreakdownRow {
 }
 
 interface TaxCalculationResult {
-  hsCode: string;
+  hsCode?: string;
   cifLkr: number;
   rows: TaxBreakdownRow[];
   totalTax: number;
+}
+
+interface CcSlab {
+  hsCode: string;
+  min: number;
+  max: number;
+  rate: number;
+}
+
+/** Excise duty (XID) slabs per cc – 2025 gazette rates. */
+const XID_CC_SLABS: Record<'Petrol' | 'Diesel' | 'Petrol Hybrid' | 'Diesel Hybrid', CcSlab[]> = {
+  Petrol: [
+    { hsCode: '8703.21.69', min: 814, max: 1000, rate: 2450 },
+    { hsCode: '8703.22.50', min: 1001, max: 1300, rate: 3850 },
+    { hsCode: '8703.22.50', min: 1301, max: 1500, rate: 4450 },
+    { hsCode: '8703.23.52', min: 1501, max: 1600, rate: 5150 },
+    { hsCode: '8703.23.55', min: 1601, max: 1800, rate: 6400 },
+    { hsCode: '8703.23.69', min: 1801, max: 2000, rate: 7700 },
+    { hsCode: '8703.23.70', min: 2001, max: 2500, rate: 8450 },
+    { hsCode: '8703.23.70', min: 2501, max: 2800, rate: 9650 },
+    { hsCode: '8703.23.70', min: 2751, max: 3000, rate: 10850 },
+    { hsCode: '8703.24.50', min: 3001, max: 4000, rate: 12050 },
+    { hsCode: '8703.25.50', min: 4001, max: 50000, rate: 13300 },
+  ],
+  Diesel: [
+    { hsCode: '8703.31.70', min: 0, max: 1500, rate: 5550 },
+    { hsCode: '8703.32.52', min: 1501, max: 1600, rate: 6950 },
+    { hsCode: '8703.32.55', min: 1601, max: 1800, rate: 8300 },
+    { hsCode: '8703.32.59', min: 1801, max: 2000, rate: 9650 },
+    { hsCode: '8703.32.79', min: 2001, max: 2500, rate: 9650 },
+    { hsCode: '8703.33.50', min: 2501, max: 2750, rate: 10850 },
+    { hsCode: '8703.33.50', min: 2751, max: 3000, rate: 12050 },
+    { hsCode: '8703.33.50', min: 3001, max: 4000, rate: 13300 },
+    { hsCode: '8703.33.50', min: 4001, max: 50000, rate: 14500 },
+  ],
+  'Petrol Hybrid': [
+    { hsCode: '8703.40.35', min: 1001, max: 1300, rate: 2750 },
+    { hsCode: '8703.40.35', min: 1301, max: 1500, rate: 3450 },
+    { hsCode: '8703.40.51', min: 1501, max: 1600, rate: 4800 },
+    { hsCode: '8703.40.53', min: 1601, max: 1800, rate: 6300 },
+    { hsCode: '8703.40.58', min: 1801, max: 2000, rate: 6900 },
+    { hsCode: '8703.40.71', min: 2001, max: 2500, rate: 7250 },
+    { hsCode: '8703.40.71', min: 2501, max: 2750, rate: 8450 },
+    { hsCode: '8703.40.71', min: 2751, max: 3000, rate: 9650 },
+    { hsCode: '8703.40.91', min: 3001, max: 4000, rate: 10850 },
+    { hsCode: '8703.40.91', min: 4001, max: 50000, rate: 12050 },
+  ],
+  'Diesel Hybrid': [
+    { hsCode: '8703.50.28', min: 0, max: 1000, rate: 4150 },
+    { hsCode: '8703.50.35', min: 1001, max: 1500, rate: 4150 },
+    { hsCode: '8703.50.51', min: 1501, max: 1600, rate: 5550 },
+    { hsCode: '8703.50.53', min: 1601, max: 1800, rate: 6900 },
+    { hsCode: '8703.50.58', min: 1801, max: 2000, rate: 8350 },
+    { hsCode: '8703.50.78', min: 2001, max: 2500, rate: 8450 },
+    { hsCode: '8703.50.78', min: 2501, max: 2750, rate: 9650 },
+    { hsCode: '8703.50.78', min: 2751, max: 3000, rate: 10850 },
+    { hsCode: '8703.50.98', min: 3001, max: 4000, rate: 12050 },
+    { hsCode: '8703.50.98', min: 4001, max: 50000, rate: 13300 },
+  ],
+};
+
+/** Excise per kW for Electric vehicles: [≤ 1 year old, > 1 year old]. */
+function electricKwRate(kw: number, age: VehicleAge) {
+  const young = age === 'less';
+  if (kw <= 50) return { rate: young ? 18100 : 36200, hsCode: '8703.80.31' };
+  if (kw <= 100) return { rate: young ? 24100 : 36200, hsCode: '8703.80.32' };
+  if (kw <= 200) return { rate: young ? 36200 : 60400, hsCode: '8703.80.33' };
+  return { rate: young ? 96600 : 132800, hsCode: '8703.80.34' };
+}
+
+/** Excise per kW for E-Power Hybrids: [≤ 1 year old, > 1 year old]. */
+function ePowerKwRate(kw: number, age: VehicleAge) {
+  const young = age === 'less';
+  if (kw <= 50) return { rate: young ? 30770 : 43440, hsCode: '8703.80.71' };
+  if (kw <= 100) return { rate: young ? 40970 : 43440, hsCode: '8703.80.73' };
+  if (kw <= 200) return { rate: young ? 41630 : 63420, hsCode: '8703.80.75' };
+  return { rate: young ? 111090 : 139440, hsCode: '8703.80.77' };
+}
+
+const fmt = (n: number) => n.toLocaleString('en-US');
+
+function calculateExcise(fuel: FuelType, engine: number, age: VehicleAge) {
+  // Small cars carry a flat minimum excise instead of a per-cc rate
+  if (fuel === 'Petrol' && engine <= 813) {
+    return { base: 1, rate: '1,992,000', amount: 1992000, hsCode: '8703.21.69' };
+  }
+  if (fuel === 'Petrol Hybrid' && engine < 1000) {
+    return { base: 1, rate: '1,810,900', amount: 1810900, hsCode: '8703.40.28' };
+  }
+
+  if (isKwFuel(fuel)) {
+    const { rate, hsCode } = fuel === 'Electric' ? electricKwRate(engine, age) : ePowerKwRate(engine, age);
+    return { base: Math.ceil(engine), rate: `${fmt(rate)}/kW`, amount: Math.ceil(engine * rate), hsCode };
+  }
+
+  const slab = XID_CC_SLABS[fuel as keyof typeof XID_CC_SLABS].find((s) => engine >= s.min && engine <= s.max);
+  if (slab) {
+    return { base: Math.ceil(engine), rate: `${fmt(slab.rate)}/cc`, amount: Math.ceil(engine * slab.rate), hsCode: slab.hsCode };
+  }
+
+  return { base: Math.ceil(engine), rate: '0', amount: 0, hsCode: 'Unknown' };
+}
+
+/** Luxury tax: charged on the part of CIF (LKR) above the fuel-type threshold. */
+function calculateLuxuryTax(cifLkr: number, fuel: FuelType) {
+  let threshold = 5000000;
+  let multiplier = 1;
+  switch (fuel) {
+    case 'Diesel':
+      multiplier = 1.2;
+      break;
+    case 'Petrol Hybrid':
+      threshold = 5500000;
+      multiplier = 0.8;
+      break;
+    case 'Diesel Hybrid':
+      threshold = 5500000;
+      multiplier = 0.9;
+      break;
+    case 'Electric':
+    case 'E-Power Hybrid':
+      threshold = 6000000;
+      multiplier = 0.6;
+      break;
+  }
+  const base = Math.max(0, Math.ceil(cifLkr - threshold));
+  if (base === 0) return { base: 0, rate: '0%', amount: 0 };
+  return { base, rate: `${100 * multiplier}%`, amount: Math.ceil(base * multiplier) };
 }
 
 export function calculateSriLankaTax(
   cifJpy: number,
   jpyRate: number,
   fuelType: FuelType,
-  capacity: number
+  capacity: number,
+  age: VehicleAge = 'more'
 ): TaxCalculationResult {
   // 1. CIF in LKR
-  const cifLkr = Math.round((cifJpy || 0) * (jpyRate || 0));
+  const cifLkr = Math.round(cifJpy * jpyRate);
 
-  // 2. Customs Import Duty (CID) - standard 30% for passenger cars
-  const cidAmount = Math.round(cifLkr * 0.30);
+  // 2. Customs Import Duty (CID) – 30% of CIF
+  const cidAmount = Math.ceil(cifLkr * 0.3);
 
-  // 3. Surcharge on Customs Duty (SUR) - 50% of CID
-  const surAmount = Math.round(cidAmount * 0.50);
+  // 3. Surcharge (SUR) – 50% of CID
+  const surAmount = Math.ceil(cidAmount * 0.5);
 
-  // 4. Excise Duty (XID / SPD) & HS Code based on fuel type & engine capacity / motor power
-  let hsCode = '8703.22.50';
-  let xidRatePerUnit = 4450;
-  let xidUnitLabel = '/cc';
+  // 4. Excise Duty (XID) – per cc / per kW / flat, depending on fuel type
+  const xid = calculateExcise(fuelType, capacity, age);
 
-  const cc = Math.max(0, capacity || 0);
-
-  switch (fuelType) {
-    case 'Petrol':
-      if (cc <= 1000) {
-        hsCode = '8703.21.50';
-        xidRatePerUnit = 2450;
-      } else if (cc <= 1300) {
-        hsCode = '8703.22.50';
-        xidRatePerUnit = 3850;
-      } else if (cc <= 1500) {
-        hsCode = '8703.22.50';
-        xidRatePerUnit = 4450;
-      } else if (cc <= 1600) {
-        hsCode = '8703.23.51';
-        xidRatePerUnit = 5150;
-      } else if (cc <= 1800) {
-        hsCode = '8703.23.52';
-        xidRatePerUnit = 6400;
-      } else if (cc <= 2000) {
-        hsCode = '8703.23.69';
-        xidRatePerUnit = 7700;
-      } else if (cc <= 2500) {
-        hsCode = '8703.23.70';
-        xidRatePerUnit = 8450;
-      } else if (cc <= 2750) {
-        hsCode = '8703.24.51';
-        xidRatePerUnit = 9650;
-      } else if (cc <= 3000) {
-        hsCode = '8703.24.52';
-        xidRatePerUnit = 10850;
-      } else if (cc <= 4000) {
-        hsCode = '8703.24.53';
-        xidRatePerUnit = 12050;
-      } else {
-        hsCode = '8703.24.54';
-        xidRatePerUnit = 13300;
-      }
-      break;
-
-    case 'Diesel':
-      if (cc <= 1000) {
-        hsCode = '8703.31.50';
-        xidRatePerUnit = 2450;
-      } else if (cc <= 1300) {
-        hsCode = '8703.31.50';
-        xidRatePerUnit = 3850;
-      } else if (cc <= 1500) {
-        hsCode = '8703.31.50';
-        xidRatePerUnit = 4450;
-      } else if (cc <= 1600) {
-        hsCode = '8703.32.51';
-        xidRatePerUnit = 5150;
-      } else if (cc <= 1800) {
-        hsCode = '8703.32.52';
-        xidRatePerUnit = 6400;
-      } else if (cc <= 2000) {
-        hsCode = '8703.32.69';
-        xidRatePerUnit = 7700;
-      } else if (cc <= 2500) {
-        hsCode = '8703.32.70';
-        xidRatePerUnit = 8450;
-      } else if (cc <= 2750) {
-        hsCode = '8703.33.51';
-        xidRatePerUnit = 9650;
-      } else if (cc <= 3000) {
-        hsCode = '8703.33.52';
-        xidRatePerUnit = 10850;
-      } else if (cc <= 4000) {
-        hsCode = '8703.33.53';
-        xidRatePerUnit = 12050;
-      } else {
-        hsCode = '8703.33.54';
-        xidRatePerUnit = 13300;
-      }
-      break;
-
-    case 'Hybrid Petrol':
-      if (cc <= 1000) {
-        hsCode = '8703.40.51';
-        xidRatePerUnit = 2050;
-      } else if (cc <= 1300) {
-        hsCode = '8703.40.51';
-        xidRatePerUnit = 2650;
-      } else if (cc <= 1500) {
-        hsCode = '8703.40.52';
-        xidRatePerUnit = 3350;
-      } else if (cc <= 1600) {
-        hsCode = '8703.40.53';
-        xidRatePerUnit = 4000;
-      } else if (cc <= 1800) {
-        hsCode = '8703.40.53';
-        xidRatePerUnit = 4600;
-      } else if (cc <= 2000) {
-        hsCode = '8703.40.54';
-        xidRatePerUnit = 5500;
-      } else if (cc <= 2500) {
-        hsCode = '8703.40.55';
-        xidRatePerUnit = 6850;
-      } else if (cc <= 3000) {
-        hsCode = '8703.40.56';
-        xidRatePerUnit = 8450;
-      } else {
-        hsCode = '8703.40.57';
-        xidRatePerUnit = 10000;
-      }
-      break;
-
-    case 'Hybrid Diesel':
-      if (cc <= 1500) {
-        hsCode = '8703.50.51';
-        xidRatePerUnit = 3850;
-      } else if (cc <= 1800) {
-        hsCode = '8703.50.52';
-        xidRatePerUnit = 4600;
-      } else if (cc <= 2000) {
-        hsCode = '8703.50.53';
-        xidRatePerUnit = 5750;
-      } else if (cc <= 2500) {
-        hsCode = '8703.50.54';
-        xidRatePerUnit = 7200;
-      } else {
-        hsCode = '8703.50.55';
-        xidRatePerUnit = 8850;
-      }
-      break;
-
-    case 'Electric':
-      xidUnitLabel = '/kW';
-      if (cc <= 50) {
-        hsCode = '8703.80.51';
-        xidRatePerUnit = 25000;
-      } else if (cc <= 100) {
-        hsCode = '8703.80.52';
-        xidRatePerUnit = 35000;
-      } else {
-        hsCode = '8703.80.53';
-        xidRatePerUnit = 55000;
-      }
-      break;
+  // 5. VAT – 18% on (CIF + 10%) + CID + SUR + XID. Only computed once every component is present.
+  let vatBase = 0;
+  let vatAmount = 0;
+  if (cifLkr > 0 && cidAmount > 0 && surAmount > 0 && xid.amount > 0) {
+    vatBase = Math.ceil(1.1 * cifLkr) + Math.ceil(cidAmount) + Math.ceil(surAmount) + Math.ceil(xid.amount);
+    vatAmount = Math.ceil(0.18 * vatBase);
   }
 
-  const xidAmount = cc * xidRatePerUnit;
+  // 6. SSCL – 2.5% on the VAT base
+  const sslAmount = Math.ceil(0.025 * vatBase);
 
-  // 5. VAT Base: Sri Lanka Customs adds 10% uplift to CIF + CID + SUR + XID
-  const vatBase = Math.round(cifLkr * 1.1 + cidAmount + surAmount + xidAmount);
-  const vatAmount = Math.round(vatBase * 0.18);
+  // 7. Luxury Tax (LXT)
+  const lxt = calculateLuxuryTax(cifLkr, fuelType);
 
-  // 6. Social Security Contribution Levy (SSL / SSCL) - 2.5% on VAT base
-  const sslBase = vatBase;
-  const sslAmount = Math.round(sslBase * 0.025);
+  // 8. Fixed per-unit charges (only once there is a CIF value)
+  const hasCif = cifLkr > 0;
+  const velAmount = hasCif ? 15000 : 0;
+  const comAmount = hasCif ? 4000 : 0;
 
-  // 7. Vehicle Entitlement / Emission Levy (VEL)
-  const velBase = 1;
-  const velRate = '15,000/Unit';
-  const velAmount = 15000;
+  const totalTax = hasCif
+    ? cidAmount + surAmount + xid.amount + vatAmount + velAmount + lxt.amount + comAmount + sslAmount
+    : 0;
 
-  // 8. Computer & Examination / Customs entry fees (COM/EXM/SEL)
-  const comBase = 1;
-  const comRate = '4,000/Unit';
-  const comAmount = 4000;
+  const rows: TaxBreakdownRow[] = [
+    { type: 'CID', name: 'Customs Import Duty', taxBase: fmt(Math.ceil(cifLkr)), rate: '30%', amount: cidAmount },
+    { type: 'SUR', name: 'Surcharge on Customs Duty', taxBase: fmt(Math.ceil(cidAmount)), rate: '50%', amount: surAmount },
+    { type: 'XID', name: 'Excise Duty', taxBase: fmt(xid.base), rate: xid.rate, amount: xid.amount },
+  ];
+  if (lxt.base !== 0) {
+    rows.push({ type: 'LXT', name: 'Luxury Tax', taxBase: fmt(lxt.base), rate: lxt.rate, amount: lxt.amount });
+  }
+  rows.push(
+    { type: 'VAT', name: 'Value Added Tax', taxBase: fmt(vatBase), rate: '18%', amount: vatAmount },
+    { type: 'SSL', name: 'Social Security Contribution Levy', taxBase: fmt(vatBase), rate: '2.5%', amount: sslAmount },
+    { type: 'VEL', name: 'Vehicle Entitlement Levy', taxBase: hasCif ? '1' : '0', rate: '15,000/Unit', amount: velAmount },
+    { type: 'COM/EXM/SEL', name: 'Computer & Examination Fees', taxBase: hasCif ? '1' : '0', rate: '4,000/Unit', amount: comAmount }
+  );
 
-  // Total Tax
-  const totalTax = cidAmount + surAmount + xidAmount + vatAmount + sslAmount + velAmount + comAmount;
+  return { hsCode: xid.hsCode, cifLkr, rows, totalTax };
+}
 
+/** Keeps only digits and one decimal part, strips leading zeros and adds thousands separators. */
+function formatNumberInput(value: string): string {
+  const [intPart, ...decimals] = value.replace(/[^\d.]/g, '').split('.');
+  const grouped = intPart.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return decimals.length ? `${grouped}.${decimals.join('')}` : grouped;
+}
+
+function parseNumberInput(value: string): number {
+  return Number(value.replace(/,/g, '')) || 0;
+}
+
+/** Result shown while required inputs are missing: every row zero, no HS code. */
+function emptyTaxResult() {
+  const zero = (type: string, name: string, rate: string) => ({ type, name, taxBase: '0', rate, amount: 0 });
   return {
-    hsCode,
-    cifLkr,
+    hsCode: undefined as string | undefined,
+    cifLkr: 0,
+    totalTax: 0,
     rows: [
-      {
-        type: 'CID',
-        name: 'Customs Import Duty',
-        taxBase: cifLkr.toLocaleString('en-US'),
-        rate: '30%',
-        amount: cidAmount,
-      },
-      {
-        type: 'SUR',
-        name: 'Surcharge on Customs Duty',
-        taxBase: cidAmount.toLocaleString('en-US'),
-        rate: '50%',
-        amount: surAmount,
-      },
-      {
-        type: 'XID',
-        name: 'Excise Duty',
-        taxBase: cc.toLocaleString('en-US'),
-        rate: `${xidRatePerUnit.toLocaleString('en-US')}${xidUnitLabel}`,
-        amount: xidAmount,
-      },
-      {
-        type: 'VAT',
-        name: 'Value Added Tax',
-        taxBase: vatBase.toLocaleString('en-US'),
-        rate: '18%',
-        amount: vatAmount,
-      },
-      {
-        type: 'SSL',
-        name: 'Social Security Contribution Levy',
-        taxBase: sslBase.toLocaleString('en-US'),
-        rate: '2.5%',
-        amount: sslAmount,
-      },
-      {
-        type: 'VEL',
-        name: 'Vehicle Emission Levy',
-        taxBase: velBase.toString(),
-        rate: velRate,
-        amount: velAmount,
-      },
-      {
-        type: 'COM/EXM/SEL',
-        name: 'Computer & Examination Fees',
-        taxBase: comBase.toString(),
-        rate: comRate,
-        amount: comAmount,
-      },
+      zero('CID', 'Customs Import Duty', '30%'),
+      zero('SUR', 'Surcharge on Customs Duty', '50%'),
+      zero('XID', 'Excise Duty', '0'),
+      zero('VAT', 'Value Added Tax', '18%'),
+      zero('SSL', 'Social Security Contribution Levy', '2.5%'),
+      zero('VEL', 'Vehicle Entitlement Levy', '15,000/Unit'),
+      zero('COM/EXM/SEL', 'Computer & Examination Fees', '4,000/Unit'),
     ],
-    totalTax,
   };
 }
 
@@ -285,25 +281,35 @@ export default function TaxCalculation() {
   const [jpyRateInput, setJpyRateInput] = useState<string>('5');
   const [fuelType, setFuelType] = useState<FuelType>('Petrol');
   const [capacityInput, setCapacityInput] = useState<string>('2,000');
+  const [ageInput, setAgeInput] = useState<VehicleAge | ''>('');
 
   // Computed values
   const [isCalculated, setIsCalculated] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Handle number parse safely
-  const cifJpy = parseFloat(cifJpyInput.replace(/,/g, '')) || 0;
-  const jpyRate = parseFloat(jpyRateInput.replace(/,/g, '')) || 0;
-  const capacity = parseFloat(capacityInput.replace(/,/g, '')) || 0;
+  const cifJpy = parseNumberInput(cifJpyInput);
+  const jpyRate = parseNumberInput(jpyRateInput);
+  const capacity = parseNumberInput(capacityInput);
+  const kwFuel = isKwFuel(fuelType);
+
+  // Same required-field rules as the reference calculator: all inputs filled, and age for EV / E-Power
+  const isValid =
+    cifJpyInput.trim() !== '' &&
+    jpyRateInput.trim() !== '' &&
+    capacityInput.trim() !== '' &&
+    (!kwFuel || ageInput !== '');
 
   const result = useMemo(() => {
-    return calculateSriLankaTax(cifJpy, jpyRate, fuelType, capacity);
-  }, [cifJpy, jpyRate, fuelType, capacity]);
+    if (!isValid) return emptyTaxResult();
+    return calculateSriLankaTax(cifJpy, jpyRate, fuelType, capacity, ageInput || 'more');
+  }, [isValid, cifJpy, jpyRate, fuelType, capacity, ageInput]);
 
   const handleReset = () => {
     setCifJpyInput('1,000');
     setJpyRateInput('5');
     setFuelType('Petrol');
     setCapacityInput('2,000');
+    setAgeInput('');
     setIsCalculated(true);
   };
 
@@ -315,11 +321,12 @@ export default function TaxCalculation() {
   const handleCopyBreakdown = () => {
     const text = [
       `D&N Automart - Tax Calculation`,
-      `HS Code: ${result.hsCode}`,
+      `HS Code: ${result.hsCode ?? '-'}`,
       `CIF Value (JPY): ${cifJpy.toLocaleString('en-US')}`,
       `Rate: ${jpyRate}`,
       `CIF Value (LKR): ${result.cifLkr.toLocaleString('en-US')}`,
-      `Fuel: ${fuelType} | Capacity: ${capacity.toLocaleString('en-US')} ${fuelType === 'Electric' ? 'kW' : 'cc'}`,
+      `Fuel: ${fuelType} | ${kwFuel ? 'Motor Power' : 'Capacity'}: ${capacity.toLocaleString('en-US')} ${kwFuel ? 'kW' : 'cc'}`,
+      ...(kwFuel ? [`Age: ${ageInput === 'less' ? 'Less than a year' : ageInput === 'more' ? 'More than a year' : '-'}`] : []),
       `---------------------------------`,
       ...result.rows.map(r => `${r.type}: Base ${r.taxBase} @ ${r.rate} = LKR ${r.amount.toLocaleString('en-US')}`),
       `---------------------------------`,
@@ -395,8 +402,9 @@ export default function TaxCalculation() {
                   </label>
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={cifJpyInput}
-                    onChange={(e) => setCifJpyInput(e.target.value)}
+                    onChange={(e) => setCifJpyInput(formatNumberInput(e.target.value))}
                     placeholder="100"
                     className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 text-slate-800 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-sm"
                   />
@@ -409,8 +417,9 @@ export default function TaxCalculation() {
                   </label>
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={jpyRateInput}
-                    onChange={(e) => setJpyRateInput(e.target.value)}
+                    onChange={(e) => setJpyRateInput(formatNumberInput(e.target.value))}
                     placeholder="5.35"
                     className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 text-slate-800 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-sm"
                   />
@@ -437,11 +446,9 @@ export default function TaxCalculation() {
                       onChange={(e) => setFuelType(e.target.value as FuelType)}
                       className="w-full appearance-none px-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-slate-800 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-sm pr-10 cursor-pointer"
                     >
-                      <option value="Petrol">Petrol</option>
-                      <option value="Diesel">Diesel</option>
-                      <option value="Hybrid Petrol">Hybrid Petrol</option>
-                      <option value="Hybrid Diesel">Hybrid Diesel</option>
-                      <option value="Electric">Electric</option>
+                      {FUEL_TYPES.map((fuel) => (
+                        <option key={fuel} value={fuel}>{fuel}</option>
+                      ))}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -454,16 +461,45 @@ export default function TaxCalculation() {
                 {/* Field 4: Engine Capacity (cc) (full width) */}
                 <div>
                   <label className="block text-sm font-semibold text-slate-800 mb-2">
-                    {fuelType === 'Electric' ? 'Motor Power (kW)' : 'Engine Capacity (cc)'}
+                    {kwFuel ? 'Motor Power (kW)' : 'Engine Capacity (cc)'}
                   </label>
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={capacityInput}
-                    onChange={(e) => setCapacityInput(e.target.value)}
-                    placeholder={fuelType === 'Electric' ? '100' : '2,000'}
+                    onChange={(e) => setCapacityInput(formatNumberInput(e.target.value))}
+                    placeholder={kwFuel ? '100' : '2,000'}
                     className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 text-slate-800 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-sm"
                   />
                 </div>
+
+                {/* Field 5: Vehicle age – EV / E-Power excise depends on it */}
+                {kwFuel && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      Manufacture Year
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={ageInput}
+                        onChange={(e) => setAgeInput(e.target.value as VehicleAge | '')}
+                        className={`w-full appearance-none px-4 py-3.5 rounded-2xl border ${ageInput ? 'border-slate-200' : 'border-rose-300'} bg-white text-slate-800 text-base font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition shadow-sm pr-10 cursor-pointer`}
+                      >
+                        <option value="">Select Year</option>
+                        <option value="less">Less than a year</option>
+                        <option value="more">More than a year</option>
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                    {!ageInput && (
+                      <p className="text-rose-600 text-xs mt-1.5">Manufacture year is required for {fuelType}.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Vertically Stacked Action Buttons matching Image 2: Calculate Tax (top, red) & Reset (bottom, gray) */}
                 <div className="flex flex-col gap-3 pt-2">
@@ -489,7 +525,7 @@ export default function TaxCalculation() {
                 <div className="flex items-start gap-2.5 text-xs text-slate-500 leading-relaxed">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <span>
-                    Calculations follow the latest Sri Lanka Customs Tariff Guide (including 30% CID, 50% SUR, specific excise rates, 18% VAT, and 2.5% SSCL).
+                    Estimates based on the 2025 Sri Lanka Customs / Treasury gazettes (30% CID, 50% SUR, excise by cc or kW, luxury tax above the CIF threshold, 18% VAT and 2.5% SSCL). Final duty is decided by Sri Lanka Customs.
                   </span>
                 </div>
               </div>
@@ -508,7 +544,7 @@ export default function TaxCalculation() {
 
               {/* Top Capsule 1: HS Code */}
               <div className="w-full bg-[#24262c] text-slate-200 font-semibold px-5 py-3.5 rounded-2xl text-sm sm:text-base mb-3 flex items-center justify-between">
-                <span>HS Code: {result.hsCode}</span>
+                <span>HS Code: {result.hsCode ?? <span className="italic text-slate-400 font-normal">(HS Code will appear here)</span>}</span>
                 <span className="text-xs text-slate-400 font-normal">{fuelType}</span>
               </div>
 
