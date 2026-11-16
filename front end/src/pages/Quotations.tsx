@@ -9,7 +9,7 @@ import { Quotation } from '@/types';
 import Modal from '@/components/ui/Modal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import EmptyState from '@/components/ui/EmptyState';
-import { formatDate, formatCurrency } from '@/utils';
+import { formatDate, formatCurrency, formatJpy, jpyToLkr } from '@/utils';
 import { QuotationPDFViewer, downloadQuotationPDF } from '@/components/pdf/QuotationPDF';
 
 const schema = z.object({
@@ -21,9 +21,10 @@ const schema = z.object({
   makeModelId: z.string().min(1, 'Required'),
   vehicleModelId: z.string().min(1, 'Required'),
   mileage: z.coerce.number().min(0),
-  cifValue: z.coerce.number().min(0),
-  lcAmount: z.coerce.number().min(0),
-  ttAmount: z.coerce.number().min(0),
+  exchangeRate: z.coerce.number({ invalid_type_error: 'Enter the exchange rate' }).positive('Enter today\'s JPY → LKR exchange rate'),
+  cifValueJpy: z.coerce.number().min(0),
+  lcAmountJpy: z.coerce.number().min(0),
+  ttAmountJpy: z.coerce.number().min(0),
   taxAmount: z.coerce.number().min(0),
   serviceCharge: z.coerce.number().min(0),
   clearingCharge: z.coerce.number().min(0),
@@ -31,15 +32,17 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-const numericFields = ['cifValue', 'lcAmount', 'ttAmount', 'taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
+// Amounts entered in JPY — their LKR value is JPY × exchange rate
+const jpyFields = [
+  { jpy: 'cifValueJpy', lkr: 'cifValue', label: 'CIF Value', hint: 'Display only — not added to the total' },
+  { jpy: 'lcAmountJpy', lkr: 'lcAmount', label: 'LC Amount' },
+  { jpy: 'ttAmountJpy', lkr: 'ttAmount', label: 'Other Payment' },
+] as const;
 
-// Display labels that shouldn't just be the humanised field name
-const fieldLabels: Partial<Record<(typeof numericFields)[number], string>> = {
-  cifValue: 'CIF Value',
-  ttAmount: 'Other Payment',
-};
+// Amounts entered directly in LKR
+const lkrFields = ['taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
 
-const defaultFinancials = { mileage: 0, cifValue: 0, lcAmount: 0, ttAmount: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 };
+const defaultFinancials = { mileage: 0, exchangeRate: undefined as unknown as number, cifValueJpy: 0, lcAmountJpy: 0, ttAmountJpy: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 };
 
 export default function Quotations() {
   const { quotations, makeModels, vehicleModels, addQuotation, updateQuotation, deleteQuotation } = useDataStore();
@@ -59,9 +62,20 @@ export default function Quotations() {
   const filteredVehicles = useMemo(() => vehicleModels.filter((v) => v.makeModelId === selectedMake), [vehicleModels, selectedMake]);
   const selectedVehicle = useMemo(() => vehicleModels.find((v) => v.id === selectedVehicleId), [vehicleModels, selectedVehicleId]);
 
+  // JPY amounts × exchange rate → LKR (live)
+  const watchedRate = Number(useWatch({ control, name: 'exchangeRate' })) || 0;
+  const watchedCifJpy = useWatch({ control, name: 'cifValueJpy' }) || 0;
+  const watchedLcJpy = useWatch({ control, name: 'lcAmountJpy' }) || 0;
+  const watchedTtJpy = useWatch({ control, name: 'ttAmountJpy' }) || 0;
+  const lkrValues = {
+    cifValue: jpyToLkr(watchedCifJpy, watchedRate),
+    lcAmount: jpyToLkr(watchedLcJpy, watchedRate),
+    ttAmount: jpyToLkr(watchedTtJpy, watchedRate),
+  };
+
   // Watch the financial fields that make up the live total (CIF value is display only)
-  const watchedLc = useWatch({ control, name: 'lcAmount' }) || 0;
-  const watchedTt = useWatch({ control, name: 'ttAmount' }) || 0;
+  const watchedLc = lkrValues.lcAmount;
+  const watchedTt = lkrValues.ttAmount;
   const watchedTax = useWatch({ control, name: 'taxAmount' }) || 0;
   const watchedService = useWatch({ control, name: 'serviceCharge' }) || 0;
   const watchedClearing = useWatch({ control, name: 'clearingCharge' }) || 0;
@@ -108,9 +122,10 @@ export default function Quotations() {
       makeModelId: q.makeModelId,
       vehicleModelId: q.vehicleModelId,
       mileage: q.mileage || 0,
-      cifValue: q.cifValue || 0,
-      lcAmount: q.lcAmount || 0,
-      ttAmount: q.ttAmount || 0,
+      exchangeRate: (q.exchangeRate || undefined) as number,
+      cifValueJpy: q.cifValueJpy || 0,
+      lcAmountJpy: q.lcAmountJpy || 0,
+      ttAmountJpy: q.ttAmountJpy || 0,
       taxAmount: q.taxAmount || 0,
       serviceCharge: q.serviceCharge || 0,
       clearingCharge: q.clearingCharge || 0,
@@ -119,7 +134,13 @@ export default function Quotations() {
     setModalOpen(true);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (form: FormData) => {
+    const data = {
+      ...form,
+      cifValue: jpyToLkr(form.cifValueJpy, form.exchangeRate),
+      lcAmount: jpyToLkr(form.lcAmountJpy, form.exchangeRate),
+      ttAmount: jpyToLkr(form.ttAmountJpy, form.exchangeRate),
+    };
     try {
       if (editing) {
         await updateQuotation(editing.id, data);
@@ -248,13 +269,44 @@ export default function Quotations() {
                 <span className="text-sm font-bold text-brand-700">{formatCurrency(liveTotal)}</span>
               </div>
             </div>
+            {/* Legacy quotations saved before JPY entry existed */}
+            {editing && !editing.exchangeRate && (editing.cifValue || editing.lcAmount || editing.ttAmount) ? (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                This quotation was saved in LKR only (CIF {formatCurrency(editing.cifValue || 0)}, LC {formatCurrency(editing.lcAmount || 0)}, Other {formatCurrency(editing.ttAmount || 0)}).
+                Enter the JPY amounts and exchange rate — the LKR values will be recalculated on save.
+              </div>
+            ) : null}
+
+            {/* JPY amounts + exchange rate → LKR */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="label">Exchange Rate (1 JPY = ? LKR)</label>
+                  <input type="number" step="0.0001" min="0" placeholder="Today's rate, e.g. 2.0450" {...register('exchangeRate')} className="input" />
+                  {errors.exchangeRate && <p className="text-xs text-red-600 mt-1">{errors.exchangeRate.message}</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {jpyFields.map((f) => (
+                  <div key={f.jpy}>
+                    <label className="label">{f.label} (JPY)</label>
+                    <input type="number" step="0.01" min="0" {...register(f.jpy)} className="input" />
+                    <p className="text-xs mt-1.5 text-slate-500">
+                      = <span className="font-semibold text-brand-700">{formatCurrency(lkrValues[f.lkr])}</span>
+                    </p>
+                    {'hint' in f && <p className="text-[11px] text-slate-400 mt-0.5">{f.hint}</p>}
+                    {errors[f.jpy] && <p className="text-xs text-red-600 mt-1">{errors[f.jpy]?.message}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div><label className="label">Mileage (km)</label><input type="number" {...register('mileage')} className="input" /></div>
-              {numericFields.map((f) => (
+              {lkrFields.map((f) => (
                 <div key={f}>
-                  <label className="label">{fieldLabels[f] ?? f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
+                  <label className="label">{f.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase())} (LKR)</label>
                   <input type="number" step="0.01" {...register(f)} className="input" />
-                  {f === 'cifValue' && <p className="text-[11px] text-slate-400 mt-1">Display only — not added to the total</p>}
                   {errors[f] && <p className="text-xs text-red-600 mt-1">{errors[f]?.message}</p>}
                 </div>
               ))}

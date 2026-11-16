@@ -25,6 +25,11 @@ export interface Quotation {
   cifValue: number;
   lcAmount: number;
   ttAmount: number;
+  /** Amounts entered in Japanese Yen; the LKR fields above = JPY × exchangeRate */
+  exchangeRate?: number;
+  cifValueJpy?: number;
+  lcAmountJpy?: number;
+  ttAmountJpy?: number;
   taxAmount: number;
   serviceCharge: number;
   clearingCharge: number;

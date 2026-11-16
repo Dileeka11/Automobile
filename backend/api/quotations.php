@@ -3,6 +3,42 @@ require_once __DIR__ . '/../config/db.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Ensure JPY / exchange-rate columns exist (see config/upgrade_quotation_jpy.php)
+try {
+    $existing = $pdo->query("SHOW COLUMNS FROM quotations")->fetchAll(PDO::FETCH_COLUMN);
+    $jpyCols = [
+        'exchange_rate' => "DECIMAL(12,4) NOT NULL DEFAULT 0",
+        'cif_value_jpy' => "DECIMAL(15,2) NOT NULL DEFAULT 0",
+        'lc_amount_jpy' => "DECIMAL(15,2) NOT NULL DEFAULT 0",
+        'tt_amount_jpy' => "DECIMAL(15,2) NOT NULL DEFAULT 0",
+    ];
+    foreach ($jpyCols as $col => $def) {
+        if (!in_array($col, $existing, true)) {
+            $pdo->exec("ALTER TABLE quotations ADD COLUMN $col $def");
+        }
+    }
+} catch (PDOException $e) {
+    // Non-fatal: queries below will report the real error if columns are still missing
+}
+
+/**
+ * LKR values for CIF / LC / Other payment are derived from the JPY amounts
+ * and the exchange rate entered on the form. Recomputed server-side so the
+ * stored LKR always matches JPY × rate.
+ */
+function applyJpyConversion(array $data): array {
+    $rate = (float)($data['exchangeRate'] ?? 0);
+    $map = ['cifValue' => 'cifValueJpy', 'lcAmount' => 'lcAmountJpy', 'ttAmount' => 'ttAmountJpy'];
+    foreach ($map as $lkr => $jpy) {
+        $data[$jpy] = (float)($data[$jpy] ?? 0);
+        if ($rate > 0) {
+            $data[$lkr] = round($data[$jpy] * $rate, 2);
+        }
+    }
+    $data['exchangeRate'] = $rate;
+    return $data;
+}
+
 switch ($method) {
     case 'GET':
         $stmt = $pdo->query("
@@ -18,6 +54,10 @@ switch ($method) {
                 q.cif_value as cifValue,
                 q.lc_amount as lcAmount,
                 q.tt_amount as ttAmount,
+                q.exchange_rate as exchangeRate,
+                q.cif_value_jpy as cifValueJpy,
+                q.lc_amount_jpy as lcAmountJpy,
+                q.tt_amount_jpy as ttAmountJpy,
                 q.tax_amount as taxAmount,
                 q.clearing_amount as clearingCharge,
                 q.service_charge as serviceCharge,
@@ -45,6 +85,10 @@ switch ($method) {
                 'cifValue' => (float)$row['cifValue'],
                 'lcAmount' => (float)$row['lcAmount'],
                 'ttAmount' => (float)$row['ttAmount'],
+                'exchangeRate' => (float)$row['exchangeRate'],
+                'cifValueJpy' => (float)$row['cifValueJpy'],
+                'lcAmountJpy' => (float)$row['lcAmountJpy'],
+                'ttAmountJpy' => (float)$row['ttAmountJpy'],
                 'taxAmount' => (float)$row['taxAmount'],
                 'clearingCharge' => (float)$row['clearingCharge'],
                 'serviceCharge' => (float)$row['serviceCharge'],
@@ -58,7 +102,7 @@ switch ($method) {
         break;
 
     case 'POST':
-        $data = getJsonInput();
+        $data = applyJpyConversion(getJsonInput());
         if (empty($data['nic']) || empty($data['name']) || empty($data['vehicleModelId'])) {
             sendError("Required fields missing");
         }
@@ -123,13 +167,17 @@ switch ($method) {
 
             // 4. Create Quotation with financial data from form
             $qId = $data['id'] ?? ('Q' . strtoupper(substr(uniqid(), -5)));
-            $stmt = $pdo->prepare("INSERT INTO quotations (id, vehicle_id, cif_value, lc_amount, tt_amount, tax_amount, clearing_amount, service_charge, mileage, dmi_charge, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft')");
+            $stmt = $pdo->prepare("INSERT INTO quotations (id, vehicle_id, cif_value, lc_amount, tt_amount, exchange_rate, cif_value_jpy, lc_amount_jpy, tt_amount_jpy, tax_amount, clearing_amount, service_charge, mileage, dmi_charge, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Draft')");
             $stmt->execute([
                 $qId,
                 $vehicleId,
                 $data['cifValue'] ?? 0,
                 $data['lcAmount'] ?? 0,
                 $data['ttAmount'] ?? 0,
+                $data['exchangeRate'],
+                $data['cifValueJpy'],
+                $data['lcAmountJpy'],
+                $data['ttAmountJpy'],
                 $data['taxAmount'] ?? 0,
                 $data['clearingCharge'] ?? 0,
                 $data['serviceCharge'] ?? 0,
@@ -156,6 +204,10 @@ switch ($method) {
                 'cifValue' => (float)($data['cifValue'] ?? 0),
                 'lcAmount' => (float)($data['lcAmount'] ?? 0),
                 'ttAmount' => (float)($data['ttAmount'] ?? 0),
+                'exchangeRate' => $data['exchangeRate'],
+                'cifValueJpy' => $data['cifValueJpy'],
+                'lcAmountJpy' => $data['lcAmountJpy'],
+                'ttAmountJpy' => $data['ttAmountJpy'],
                 'taxAmount' => (float)($data['taxAmount'] ?? 0),
                 'clearingCharge' => (float)($data['clearingCharge'] ?? 0),
                 'serviceCharge' => (float)($data['serviceCharge'] ?? 0),
@@ -175,7 +227,7 @@ switch ($method) {
         if (!$id) {
             sendError("Quotation ID is required");
         }
-        $data = getJsonInput();
+        $data = applyJpyConversion(getJsonInput());
 
         try {
             $pdo->beginTransaction();
@@ -230,11 +282,15 @@ switch ($method) {
             }
 
             // Update quotation financial values from form
-            $stmt = $pdo->prepare("UPDATE quotations SET cif_value = ?, lc_amount = ?, tt_amount = ?, tax_amount = ?, clearing_amount = ?, service_charge = ?, mileage = ?, dmi_charge = ? WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE quotations SET cif_value = ?, lc_amount = ?, tt_amount = ?, exchange_rate = ?, cif_value_jpy = ?, lc_amount_jpy = ?, tt_amount_jpy = ?, tax_amount = ?, clearing_amount = ?, service_charge = ?, mileage = ?, dmi_charge = ? WHERE id = ?");
             $stmt->execute([
                 $data['cifValue'] ?? 0,
                 $data['lcAmount'] ?? 0,
                 $data['ttAmount'] ?? 0,
+                $data['exchangeRate'],
+                $data['cifValueJpy'],
+                $data['lcAmountJpy'],
+                $data['ttAmountJpy'],
                 $data['taxAmount'] ?? 0,
                 $data['clearingCharge'] ?? 0,
                 $data['serviceCharge'] ?? 0,

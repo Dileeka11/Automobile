@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, PDFViewer, pdf, Image, Svg, Path, Rect, Circle, Line, G, Polygon } from '@react-pdf/renderer';
 import { MakeModel, Quotation, VehicleModel } from '@/types';
-import { formatCurrency, formatDate, quotationTotal } from '@/utils';
+import { formatCurrency, formatDate, formatJpy, quotationTotal } from '@/utils';
 
 /* ─── Brand colors matching letterhead ─── */
 const NAVY = '#1a3a6e';
@@ -324,9 +324,13 @@ function ContactIcon({ type }: { type: 'phone' | 'email' | 'location' }) {
 }
 
 export function QuotationDoc({ quotation, vehicle, make }: Props) {
+  const rate = quotation.exchangeRate || 0;
+  // e.g. "LC Amount (JPY 1,200,000 @ 2.0450)" when the amount was entered in JPY
+  const jpyLabel = (label: string, jpy?: number) =>
+    rate > 0 && jpy ? `${label} (${formatJpy(jpy)} @ ${rate})` : label;
   const rows: [string, number][] = [
-    ['LC Amount', quotation.lcAmount || 0],
-    ['Other Payment', quotation.ttAmount || 0],
+    [jpyLabel('LC Amount', quotation.lcAmountJpy), quotation.lcAmount || 0],
+    [jpyLabel('Other Payment', quotation.ttAmountJpy), quotation.ttAmount || 0],
     ['Tax Amount', quotation.taxAmount || 0],
     ['Service Charge', quotation.serviceCharge || 0],
     ['Clearing Charge', quotation.clearingCharge || 0],
@@ -401,7 +405,7 @@ export function QuotationDoc({ quotation, vehicle, make }: Props) {
           </View>
           {/* CIF value is informational only and is not part of the total */}
           <View style={s.tRow}>
-            <Text style={[s.tCellLabel, { color: '#8a94a6' }]}>CIF Value (reference only)</Text>
+            <Text style={[s.tCellLabel, { color: '#8a94a6' }]}>{jpyLabel('CIF Value', quotation.cifValueJpy)} — reference only</Text>
             <Text style={[s.tCellValue, { color: '#8a94a6' }]}>{formatCurrency(quotation.cifValue || 0)}</Text>
           </View>
           {rows.map(([label, value], idx) => (

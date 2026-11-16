@@ -12,6 +12,13 @@ export const formatCurrency = (value: number): string => {
   }).format(value);
 };
 
+export const formatJpy = (value: number): string =>
+  `JPY ${new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(Number(value) || 0)}`;
+
+/** Convert a JPY amount to LKR at the given rate, rounded to cents. */
+export const jpyToLkr = (jpy: number, rate: number): number =>
+  Math.round((Number(jpy) || 0) * (Number(rate) || 0) * 100) / 100;
+
 export const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-LK', { year: 'numeric', month: 'short', day: 'numeric' });
 
