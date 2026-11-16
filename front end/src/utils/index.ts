@@ -141,5 +141,15 @@ export const cashbookRevenue = (i: PricingInput, q?: Quotation | null): number =
   return Number(q?.serviceCharge || 0);
 };
 
+/**
+ * The loss a company-LC invoice adds to the cashbook expenses once fully paid:
+ * cost - (selling price + VAT) when that is positive, otherwise 0.
+ */
+export const cashbookLoss = (i: PricingInput, q?: Quotation | null): number => {
+  if (i.lcOpenType !== 'company') return 0;
+  const p = invoicePricing(i, q);
+  return p.isCompanyPriced && p.profit < 0 ? -p.profit : 0;
+};
+
 export const cn = (...classes: (string | false | null | undefined)[]) =>
   classes.filter(Boolean).join(' ');

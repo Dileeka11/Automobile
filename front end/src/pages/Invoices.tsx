@@ -735,7 +735,7 @@ export default function Invoices() {
                   </div>
                   {sellingPriceVal > 0 && (
                     <div className={`flex justify-between text-xs ${pricing.profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                      <span>Profit (to cashbook once fully paid)</span>
+                      <span>{pricing.profit >= 0 ? 'Profit (to cashbook revenue once fully paid)' : 'Loss (to cashbook expenses once fully paid)'}</span>
                       <span className="font-semibold">{formatCurrency(pricing.profit)}</span>
                     </div>
                   )}

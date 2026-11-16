@@ -22,7 +22,7 @@ export type CashbookRevenueRow = {
 };
 
 export type CashbookExpenseRow = {
-  id: number;
+  id: number | string;
   expenseType: string;
   description: string;
   amount: number | string;

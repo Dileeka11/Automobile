@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import { useForm } from 'react-hook-form';
 import { useDataStore, toast } from '@/store';
 import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Wallet, Landmark, Loader2, FileDown, X, Undo2 } from 'lucide-react';
-import { formatCurrency, formatDate, cashbookRevenue } from '@/utils';
+import { formatCurrency, formatDate, cashbookRevenue, cashbookLoss } from '@/utils';
 import EmptyState from '@/components/ui/EmptyState';
 import { downloadCashbookReportPDF } from '@/components/pdf/CashbookReportPDF';
 
@@ -127,10 +127,34 @@ export default function Cashbook() {
       .reduce((sum, item) => sum + item.serviceCharge, 0);
   }, [inflowItems, fromDate, toDate]);
 
-  // Expenses limited to the selected period (manual revenue entries live in the same table)
+  // Company-LC vehicles sold below cost: the loss is an automatic expense once the invoice is fully paid
+  const vehicleLossRows = useMemo(() => {
+    return invoices.flatMap((invoice) => {
+      const q = quotations.find((x) => x.id === invoice.quotationId);
+      const loss = cashbookLoss(invoice, q);
+      if (loss <= 0 || Number(invoice.balance || 0) > 0 || !inRange(invoice.createdAt)) return [];
+      const v = q ? vehicleModels.find((x) => x.id === q.vehicleModelId) : null;
+      const m = q ? makeModels.find((x) => x.id === q.makeModelId) : null;
+      const vehicle = m && v ? `${m.name} ${v.name} (${v.year})` : '';
+      return [{
+        id: `loss-${invoice.id}`,
+        isAuto: true,
+        expenseType: 'Vehicle Loss (Company LC)',
+        description: `Invoice ${invoice.id}${q?.name ? ` — ${q.name}` : ''}${vehicle ? ` — ${vehicle}` : ''}`,
+        amount: loss,
+        dateIncurred: String(invoice.createdAt).slice(0, 10),
+      }];
+    });
+  }, [invoices, quotations, vehicleModels, makeModels, fromDate, toDate]);
+
+  // Expenses limited to the selected period (manual revenue entries live in the same table),
+  // plus automatic vehicle-loss rows, newest first
   const filteredExpenses = useMemo(() => {
-    return cashbookExpenses.filter((exp) => exp.entryType !== 'revenue' && inRange(exp.dateIncurred));
-  }, [cashbookExpenses, fromDate, toDate]);
+    const manual = cashbookExpenses
+      .filter((exp) => exp.entryType !== 'revenue' && inRange(exp.dateIncurred))
+      .map((exp) => ({ ...exp, isAuto: false }));
+    return [...vehicleLossRows, ...manual].sort((a, b) => String(b.dateIncurred).localeCompare(String(a.dateIncurred)));
+  }, [cashbookExpenses, vehicleLossRows, fromDate, toDate]);
 
   // Cash revenue added by hand, limited to the selected period
   const manualRevenues = useMemo(() => {
@@ -515,13 +539,17 @@ export default function Cashbook() {
                             {formatCurrency(exp.amount)}
                           </td>
                           <td className="text-center">
-                            <button
-                              onClick={() => handleDeleteExpense(exp.id)}
-                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-                              title="Delete Record"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {exp.isAuto ? (
+                              <span className="text-[10px] font-semibold text-slate-400" title="Added automatically from the invoice — change the selling price on the invoice to update it">Auto</span>
+                            ) : (
+                              <button
+                                onClick={() => handleDeleteExpense(exp.id as number)}
+                                className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}
