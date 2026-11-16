@@ -21,28 +21,46 @@ const schema = z.object({
   makeModelId: z.string().min(1, 'Required'),
   vehicleModelId: z.string().min(1, 'Required'),
   mileage: z.coerce.number().min(0),
-  exchangeRate: z.coerce.number({ invalid_type_error: 'Enter the exchange rate' }).positive('Enter today\'s JPY → LKR exchange rate'),
+  exchangeRate: z.preprocess((v) => (v === '' || v == null ? 0 : v), z.coerce.number().min(0)),
+  cifCurrency: z.enum(['JPY', 'LKR']),
+  lcCurrency: z.enum(['JPY', 'LKR']),
+  ttCurrency: z.enum(['JPY', 'LKR']),
   cifValueJpy: z.coerce.number().min(0),
   lcAmountJpy: z.coerce.number().min(0),
   ttAmountJpy: z.coerce.number().min(0),
+  cifValue: z.coerce.number().min(0),
+  lcAmount: z.coerce.number().min(0),
+  ttAmount: z.coerce.number().min(0),
   taxAmount: z.coerce.number().min(0),
   serviceCharge: z.coerce.number().min(0),
   clearingCharge: z.coerce.number().min(0),
   dmiCharge: z.coerce.number().min(0),
+}).superRefine((d, ctx) => {
+  // Exchange rate is only required when an amount is entered in JPY
+  const usesJpy = jpyFields.some((f) => d[f.cur] === 'JPY' && Number(d[f.jpy]) > 0);
+  if (usesJpy && !(d.exchangeRate > 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['exchangeRate'], message: 'Enter today\'s JPY → LKR exchange rate' });
+  }
 });
 type FormData = z.infer<typeof schema>;
+type Currency = 'JPY' | 'LKR';
 
-// Amounts entered in JPY — their LKR value is JPY × exchange rate
+// Amounts that can be entered in JPY or LKR (per field). JPY → LKR = JPY × exchange rate
 const jpyFields = [
-  { jpy: 'cifValueJpy', lkr: 'cifValue', label: 'CIF Value', hint: 'Display only — not added to the total' },
-  { jpy: 'lcAmountJpy', lkr: 'lcAmount', label: 'LC Amount' },
-  { jpy: 'ttAmountJpy', lkr: 'ttAmount', label: 'Other Payment' },
+  { cur: 'cifCurrency', jpy: 'cifValueJpy', lkr: 'cifValue', label: 'CIF Value', hint: 'Display only — not added to the total' },
+  { cur: 'lcCurrency', jpy: 'lcAmountJpy', lkr: 'lcAmount', label: 'LC Amount' },
+  { cur: 'ttCurrency', jpy: 'ttAmountJpy', lkr: 'ttAmount', label: 'Other Payment' },
 ] as const;
 
 // Amounts entered directly in LKR
 const lkrFields = ['taxAmount', 'serviceCharge', 'clearingCharge', 'dmiCharge'] as const;
 
-const defaultFinancials = { mileage: 0, exchangeRate: undefined as unknown as number, cifValueJpy: 0, lcAmountJpy: 0, ttAmountJpy: 0, taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0 };
+const defaultFinancials = {
+  mileage: 0, exchangeRate: 0,
+  cifCurrency: 'JPY' as Currency, lcCurrency: 'JPY' as Currency, ttCurrency: 'JPY' as Currency,
+  cifValueJpy: 0, lcAmountJpy: 0, ttAmountJpy: 0, cifValue: 0, lcAmount: 0, ttAmount: 0,
+  taxAmount: 0, serviceCharge: 0, clearingCharge: 0, dmiCharge: 0,
+};
 
 export default function Quotations() {
   const { quotations, makeModels, vehicleModels, addQuotation, updateQuotation, deleteQuotation } = useDataStore();
@@ -67,10 +85,18 @@ export default function Quotations() {
   const watchedCifJpy = useWatch({ control, name: 'cifValueJpy' }) || 0;
   const watchedLcJpy = useWatch({ control, name: 'lcAmountJpy' }) || 0;
   const watchedTtJpy = useWatch({ control, name: 'ttAmountJpy' }) || 0;
+  const currencies = {
+    cifCurrency: useWatch({ control, name: 'cifCurrency' }) || 'JPY',
+    lcCurrency: useWatch({ control, name: 'lcCurrency' }) || 'JPY',
+    ttCurrency: useWatch({ control, name: 'ttCurrency' }) || 'JPY',
+  };
+  const watchedCifLkr = Number(useWatch({ control, name: 'cifValue' })) || 0;
+  const watchedLcLkr = Number(useWatch({ control, name: 'lcAmount' })) || 0;
+  const watchedTtLkr = Number(useWatch({ control, name: 'ttAmount' })) || 0;
   const lkrValues = {
-    cifValue: jpyToLkr(watchedCifJpy, watchedRate),
-    lcAmount: jpyToLkr(watchedLcJpy, watchedRate),
-    ttAmount: jpyToLkr(watchedTtJpy, watchedRate),
+    cifValue: currencies.cifCurrency === 'JPY' ? jpyToLkr(watchedCifJpy, watchedRate) : watchedCifLkr,
+    lcAmount: currencies.lcCurrency === 'JPY' ? jpyToLkr(watchedLcJpy, watchedRate) : watchedLcLkr,
+    ttAmount: currencies.ttCurrency === 'JPY' ? jpyToLkr(watchedTtJpy, watchedRate) : watchedTtLkr,
   };
 
   // Watch the financial fields that make up the live total (CIF value is display only)
@@ -122,10 +148,17 @@ export default function Quotations() {
       makeModelId: q.makeModelId,
       vehicleModelId: q.vehicleModelId,
       mileage: q.mileage || 0,
-      exchangeRate: (q.exchangeRate || undefined) as number,
+      exchangeRate: q.exchangeRate || 0,
+      // A field is in JPY mode only if it was saved with a JPY amount; otherwise it opens in LKR
+      cifCurrency: q.cifValueJpy ? 'JPY' : (q.cifValue ? 'LKR' : 'JPY'),
+      lcCurrency: q.lcAmountJpy ? 'JPY' : (q.lcAmount ? 'LKR' : 'JPY'),
+      ttCurrency: q.ttAmountJpy ? 'JPY' : (q.ttAmount ? 'LKR' : 'JPY'),
       cifValueJpy: q.cifValueJpy || 0,
       lcAmountJpy: q.lcAmountJpy || 0,
       ttAmountJpy: q.ttAmountJpy || 0,
+      cifValue: q.cifValue || 0,
+      lcAmount: q.lcAmount || 0,
+      ttAmount: q.ttAmount || 0,
       taxAmount: q.taxAmount || 0,
       serviceCharge: q.serviceCharge || 0,
       clearingCharge: q.clearingCharge || 0,
@@ -135,12 +168,13 @@ export default function Quotations() {
   };
 
   const onSubmit = async (form: FormData) => {
-    const data = {
-      ...form,
-      cifValue: jpyToLkr(form.cifValueJpy, form.exchangeRate),
-      lcAmount: jpyToLkr(form.lcAmountJpy, form.exchangeRate),
-      ttAmount: jpyToLkr(form.ttAmountJpy, form.exchangeRate),
-    };
+    // Currency toggles are UI-only — don't send them to the API
+    const { cifCurrency: _c, lcCurrency: _l, ttCurrency: _t, ...data } = form;
+    // JPY mode → LKR = JPY × rate. LKR mode → keep LKR as typed, clear the JPY amount.
+    for (const f of jpyFields) {
+      if (form[f.cur] === 'JPY') data[f.lkr] = jpyToLkr(form[f.jpy], form.exchangeRate);
+      else data[f.jpy] = 0;
+    }
     try {
       if (editing) {
         await updateQuotation(editing.id, data);
@@ -269,35 +303,55 @@ export default function Quotations() {
                 <span className="text-sm font-bold text-brand-700">{formatCurrency(liveTotal)}</span>
               </div>
             </div>
-            {/* Legacy quotations saved before JPY entry existed */}
-            {editing && !editing.exchangeRate && (editing.cifValue || editing.lcAmount || editing.ttAmount) ? (
-              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                This quotation was saved in LKR only (CIF {formatCurrency(editing.cifValue || 0)}, LC {formatCurrency(editing.lcAmount || 0)}, Other {formatCurrency(editing.ttAmount || 0)}).
-                Enter the JPY amounts and exchange rate — the LKR values will be recalculated on save.
-              </div>
-            ) : null}
-
-            {/* JPY amounts + exchange rate → LKR */}
+            {/* CIF / LC / Other — each entered in JPY or LKR; JPY converts with the exchange rate */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 mb-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="label">Exchange Rate (1 JPY = ? LKR)</label>
                   <input type="number" step="0.0001" min="0" placeholder="Today's rate, e.g. 2.0450" {...register('exchangeRate')} className="input" />
-                  {errors.exchangeRate && <p className="text-xs text-red-600 mt-1">{errors.exchangeRate.message}</p>}
+                  {errors.exchangeRate
+                    ? <p className="text-xs text-red-600 mt-1">{errors.exchangeRate.message}</p>
+                    : <p className="text-[11px] text-slate-400 mt-1">Required when any amount is entered in JPY</p>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {jpyFields.map((f) => (
-                  <div key={f.jpy}>
-                    <label className="label">{f.label} (JPY)</label>
-                    <input type="number" step="0.01" min="0" {...register(f.jpy)} className="input" />
-                    <p className="text-xs mt-1.5 text-slate-500">
-                      = <span className="font-semibold text-brand-700">{formatCurrency(lkrValues[f.lkr])}</span>
-                    </p>
-                    {'hint' in f && <p className="text-[11px] text-slate-400 mt-0.5">{f.hint}</p>}
-                    {errors[f.jpy] && <p className="text-xs text-red-600 mt-1">{errors[f.jpy]?.message}</p>}
-                  </div>
-                ))}
+                {jpyFields.map((f) => {
+                  const cur = currencies[f.cur];
+                  return (
+                    <div key={f.jpy}>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="label !mb-0">{f.label} ({cur})</label>
+                        <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-[11px] font-semibold">
+                          {(['JPY', 'LKR'] as const).map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setValue(f.cur, c, { shouldValidate: false })}
+                              className={`px-2 py-0.5 rounded ${cur === c ? 'bg-brand-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {cur === 'JPY' ? (
+                        <>
+                          <input key={`${f.jpy}-jpy`} type="number" step="0.01" min="0" {...register(f.jpy)} className="input" />
+                          <p className="text-xs mt-1.5 text-slate-500">
+                            = <span className="font-semibold text-brand-700">{formatCurrency(lkrValues[f.lkr])}</span>
+                          </p>
+                          {errors[f.jpy] && <p className="text-xs text-red-600 mt-1">{errors[f.jpy]?.message}</p>}
+                        </>
+                      ) : (
+                        <>
+                          <input key={`${f.lkr}-lkr`} type="number" step="0.01" min="0" {...register(f.lkr)} className="input" />
+                          {errors[f.lkr] && <p className="text-xs text-red-600 mt-1">{errors[f.lkr]?.message}</p>}
+                        </>
+                      )}
+                      {'hint' in f && <p className="text-[11px] text-slate-400 mt-0.5">{f.hint}</p>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

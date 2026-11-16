@@ -31,7 +31,8 @@ function applyJpyConversion(array $data): array {
     $map = ['cifValue' => 'cifValueJpy', 'lcAmount' => 'lcAmountJpy', 'ttAmount' => 'ttAmountJpy'];
     foreach ($map as $lkr => $jpy) {
         $data[$jpy] = (float)($data[$jpy] ?? 0);
-        if ($rate > 0) {
+        // Only JPY-entered fields are converted; LKR-entered fields (JPY = 0) keep their LKR value
+        if ($rate > 0 && $data[$jpy] > 0) {
             $data[$lkr] = round($data[$jpy] * $rate, 2);
         }
     }
