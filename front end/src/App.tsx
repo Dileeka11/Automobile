@@ -16,6 +16,7 @@ import Login from '@/pages/Login';
 import Users from '@/pages/Users';
 import Cashbook from '@/pages/Cashbook';
 import WebsiteCustomize from '@/pages/WebsiteCustomize';
+import VehiclesForSale from '@/pages/VehiclesForSale';
 import FeedbackManage from '@/pages/FeedbackManage';
 import TaxCalculation from '@/pages/TaxCalculation';
 import { useDataStore, toast } from '@/store';
@@ -89,6 +90,7 @@ export default function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="cashbook" element={<Cashbook />} />
             <Route path="leads" element={<Leads />} />
+            <Route path="vehicles-for-sale" element={<VehiclesForSale />} />
             <Route path="website" element={<WebsiteCustomize />} />
             <Route path="feedback" element={<FeedbackManage />} />
             <Route path="tax-calculation" element={<TaxCalculation />} />

@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { useNavigate, Link } from 'react-router-dom';
-import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers, ChevronLeft, ChevronRight, X, Calculator } from 'lucide-react';
+import { Car, ShieldCheck, Star, Phone, Mail, MapPin, ArrowRight, Gauge, CheckCircle, Ship, Award, Users, Search, RefreshCw, Layers, ChevronLeft, ChevronRight, X, Calculator, Fuel, Calendar, Cog, Images, Palette, CarFront } from 'lucide-react';
 import { useDataStore, toast } from '@/store';
+import type { SaleVehicle } from '@/types';
+
+const imageUrl = (path: string) => `/backend/api/image.php?path=${encodeURIComponent(path)}`;
+const formatSalePrice = (n: number) => `LKR ${Math.round(n).toLocaleString('en-LK')}`;
+const SALE_STATUS: Record<string, { label: string; cls: string }> = {
+  available: { label: 'Available', cls: 'bg-emerald-500/90 text-white' },
+  reserved: { label: 'Reserved', cls: 'bg-amber-500/90 text-white' },
+  sold: { label: 'Sold', cls: 'bg-slate-800/90 text-white' },
+};
 
 /** Built-in hero images, used until an admin uploads a replacement */
 const DEFAULT_HERO_SLIDES = [
@@ -144,6 +153,56 @@ export default function Landing() {
       .catch(() => { /* section simply stays hidden */ });
     return () => { active = false; };
   }, []);
+
+  // "Vehicles For Sale" listings — managed from the admin Vehicles For Sale page
+  const [saleVehicles, setSaleVehicles] = useState<SaleVehicle[]>([]);
+  const [openVehicle, setOpenVehicle] = useState<SaleVehicle | null>(null);
+  const [photoIdx, setPhotoIdx] = useState(0);
+  useEffect(() => {
+    let active = true;
+    fetch('/backend/api/sale_vehicles.php')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        if (!active || !Array.isArray(rows)) return;
+        // Sold cars stay visible as social proof, but after the ones still on offer
+        const rank: Record<string, number> = { available: 0, reserved: 1, sold: 2 };
+        setSaleVehicles([...rows].sort((a, b) => (rank[a.status] ?? 0) - (rank[b.status] ?? 0)));
+      })
+      .catch(() => { /* section simply stays hidden */ });
+    return () => { active = false; };
+  }, []);
+
+  const vehiclePhotos = openVehicle
+    ? [openVehicle.coverPath, ...openVehicle.images.map((i) => i.filePath)].map(imageUrl)
+    : [];
+  const showVehicle = (v: SaleVehicle) => { setPhotoIdx(0); setOpenVehicle(v); };
+  const stepPhoto = (dir: -1 | 1) =>
+    setPhotoIdx((i) => (i + dir + vehiclePhotos.length) % vehiclePhotos.length);
+
+  // Arrow keys flip photos, Escape closes the vehicle popup
+  useEffect(() => {
+    if (!openVehicle) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenVehicle(null);
+      else if (e.key === 'ArrowLeft') stepPhoto(-1);
+      else if (e.key === 'ArrowRight') stepPhoto(1);
+    };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [openVehicle, vehiclePhotos.length]);
+
+  const inquireAbout = (v: SaleVehicle) => {
+    setInquiry((q) => ({
+      ...q,
+      message: `Hi, I'm interested in the ${v.title}${v.year ? ` (${v.year})` : ''} listed for ${formatSalePrice(v.price)}. Please contact me with more details.`,
+    }));
+    setOpenVehicle(null);
+    setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  };
 
   // The strip shows five per row; anything beyond that is reached with the arrows
   const clientsTrack = useRef<HTMLDivElement | null>(null);
@@ -372,6 +431,9 @@ export default function Landing() {
             <div className="hidden md:flex items-center space-x-8">
               <a href="#home" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Home</a>
               <a href="#services" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Services</a>
+              {saleVehicles.length > 0 && (
+                <a href="#for-sale" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">For Sale</a>
+              )}
               <a href="#trust" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Why Us</a>
               <a href="#contact" className="relative text-xs font-bold uppercase tracking-wider text-slate-600 hover:text-brand-700 transition-colors duration-300 py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[2px] after:bg-brand-500 after:transition-all after:duration-300 hover:after:w-full">Contact</a>
               <Link to="/tax-calculation" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 hover:text-rose-700 text-xs font-bold uppercase tracking-wider transition-colors duration-300">
@@ -576,6 +638,221 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* --- Vehicles For Sale Section --- */}
+      {saleVehicles.length > 0 && (
+        <section id="for-sale" className="py-24 bg-gradient-to-b from-silver-50 to-white border-b border-silver-200 relative scroll-mt-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-14 space-y-4">
+              <h2 className="text-xs font-bold text-brand-600 uppercase tracking-widest">Vehicles For Sale</h2>
+              <h3 className="text-4xl font-black text-slate-900">Ready To Drive Home</h3>
+              <p className="text-sm text-slate-500 max-w-xl mx-auto">
+                Hand-picked imports available now. Tap a vehicle to see every photo, the full specs and to send us an inquiry.
+              </p>
+              <div className="w-16 h-1 bg-gradient-to-r from-brand-600 to-bluegray-400 mx-auto rounded-full" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+              {saleVehicles.map((v) => {
+                const status = SALE_STATUS[v.status] ?? SALE_STATUS.available;
+                const isSold = v.status === 'sold';
+                const specs = [
+                  v.year && { icon: Calendar, text: String(v.year) },
+                  v.mileage !== null && { icon: Gauge, text: `${v.mileage.toLocaleString()} km` },
+                  v.fuelType && { icon: Fuel, text: v.fuelType },
+                  v.transmission && { icon: Cog, text: v.transmission },
+                ].filter(Boolean) as { icon: typeof Calendar; text: string }[];
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => showVehicle(v)}
+                    className="group text-left bg-white border border-silver-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-brand-600/10 hover:border-brand-300 hover:-translate-y-1.5 transition-all duration-500 flex flex-col"
+                  >
+                    <div className="relative overflow-hidden bg-silver-100">
+                      <img
+                        src={imageUrl(v.coverPath)}
+                        alt={v.title}
+                        loading="lazy"
+                        className={`w-full aspect-[3/2] object-cover group-hover:scale-105 transition-transform duration-700 ${isSold ? 'grayscale-[60%]' : ''}`}
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent pointer-events-none" />
+                      <span className={`absolute top-4 left-4 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur ${status.cls}`}>
+                        {status.label}
+                      </span>
+                      {v.images.length > 0 && (
+                        <span className="absolute top-4 right-4 px-2.5 py-1 rounded-full bg-black/55 backdrop-blur text-white text-[11px] font-bold flex items-center gap-1">
+                          <Images className="w-3.5 h-3.5" /> {1 + v.images.length}
+                        </span>
+                      )}
+                      {v.condition && (
+                        <span className="absolute bottom-4 left-4 text-[10px] font-bold uppercase tracking-widest text-white/80">
+                          {v.condition}
+                        </span>
+                      )}
+                      <span className="absolute bottom-3 right-4 text-xl font-black text-white drop-shadow">
+                        {formatSalePrice(v.price)}
+                      </span>
+                    </div>
+
+                    <div className="p-6 flex-1 flex flex-col gap-4">
+                      <h4 className="text-lg font-black text-slate-900 leading-snug line-clamp-2 group-hover:text-brand-700 transition-colors">
+                        {v.title}
+                      </h4>
+                      {specs.length > 0 && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {specs.map(({ icon: Icon, text }) => (
+                            <span key={text} className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-silver-50 border border-silver-200 rounded-lg px-2.5 py-2 truncate">
+                              <Icon className="w-3.5 h-3.5 text-brand-600 flex-shrink-0" />
+                              <span className="truncate">{text}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <span className="mt-auto pt-4 border-t border-silver-200 flex items-center justify-between text-sm font-bold text-brand-600">
+                        View details
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Vehicle details popup with photo gallery */}
+      {openVehicle && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-sm"
+          onClick={() => setOpenVehicle(null)}
+        >
+          <div
+            className="w-full max-w-6xl bg-white rounded-3xl shadow-2xl max-h-[94vh] overflow-y-auto grid grid-cols-1 lg:grid-cols-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Gallery */}
+            <div className="lg:col-span-3 bg-slate-950 p-3 sm:p-4 flex flex-col gap-3">
+              <div className="relative rounded-2xl overflow-hidden bg-black">
+                <img
+                  key={vehiclePhotos[photoIdx]}
+                  src={vehiclePhotos[photoIdx]}
+                  alt={`${openVehicle.title} — photo ${photoIdx + 1}`}
+                  className="w-full aspect-[3/2] object-cover animate-[fadeIn_.3s_ease]"
+                />
+                {vehiclePhotos.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => stepPhoto(-1)}
+                      aria-label="Previous photo"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-slate-800 shadow-lg flex items-center justify-center transition"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stepPhoto(1)}
+                      aria-label="Next photo"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-slate-800 shadow-lg flex items-center justify-center transition"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <span className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs font-bold">
+                      {photoIdx + 1} / {vehiclePhotos.length}
+                    </span>
+                  </>
+                )}
+              </div>
+              {vehiclePhotos.length > 1 && (
+                <div className="grid grid-cols-6 gap-2">
+                  {vehiclePhotos.map((src, i) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => setPhotoIdx(i)}
+                      aria-label={`Show photo ${i + 1}`}
+                      className={`rounded-lg overflow-hidden ring-2 transition ${i === photoIdx ? 'ring-brand-500 opacity-100' : 'ring-transparent opacity-50 hover:opacity-90'}`}
+                    >
+                      <img src={src} alt="" className="w-full aspect-[3/2] object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Details */}
+            <div className="lg:col-span-2 p-6 sm:p-8 flex flex-col gap-6 relative">
+              <button
+                type="button"
+                onClick={() => setOpenVehicle(null)}
+                aria-label="Close"
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-silver-100 text-slate-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="space-y-2 pr-8">
+                <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${(SALE_STATUS[openVehicle.status] ?? SALE_STATUS.available).cls}`}>
+                  {(SALE_STATUS[openVehicle.status] ?? SALE_STATUS.available).label}
+                </span>
+                <h3 className="text-2xl font-black text-slate-900 leading-tight">{openVehicle.title}</h3>
+                <p className="text-3xl font-black text-brand-700">{formatSalePrice(openVehicle.price)}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                {([
+                  ['Make', openVehicle.make, CarFront],
+                  ['Model', openVehicle.model, Car],
+                  ['Year', openVehicle.year, Calendar],
+                  ['Mileage', openVehicle.mileage !== null ? `${openVehicle.mileage.toLocaleString()} km` : null, Gauge],
+                  ['Fuel', openVehicle.fuelType, Fuel],
+                  ['Transmission', openVehicle.transmission, Cog],
+                  ['Engine', openVehicle.engineCc ? `${openVehicle.engineCc.toLocaleString()} cc` : null, Gauge],
+                  ['Colour', openVehicle.color, Palette],
+                  ['Condition', openVehicle.condition, ShieldCheck],
+                ] as const)
+                  .filter(([, value]) => value !== null && value !== '')
+                  .map(([label, value, Icon]) => (
+                    <div key={label} className="flex items-center gap-3 bg-silver-50 border border-silver-200 rounded-xl px-3 py-2.5">
+                      <Icon className="w-4 h-4 text-brand-600 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+                        <p className="text-sm font-bold text-slate-800 truncate">{value}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {openVehicle.description && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Description</p>
+                  <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{openVehicle.description}</p>
+                </div>
+              )}
+
+              <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => inquireAbout(openVehicle)}
+                  disabled={openVehicle.status === 'sold'}
+                  className="flex-1 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold transition shadow-lg shadow-brand-600/20 flex items-center justify-center gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  {openVehicle.status === 'sold' ? 'Sold' : 'Inquire Now'}
+                </button>
+                <a
+                  href="tel:+94773446380"
+                  className="flex-1 py-3.5 rounded-xl bg-white border border-silver-200 hover:border-brand-300 text-slate-700 hover:text-brand-700 font-bold transition flex items-center justify-center gap-2"
+                >
+                  <Phone className="w-4 h-4" /> Call Us
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- Our Clients Section --- */}
       {clients.length > 0 && (

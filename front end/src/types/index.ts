@@ -170,3 +170,33 @@ export interface InvoicePayment {
   notes?: string | null;
   createdAt?: string;
 }
+
+/* ── Vehicles listed for sale on the public website ── */
+export type SaleVehicleStatus = 'available' | 'reserved' | 'sold';
+
+export interface SaleVehicleImage {
+  id: number;
+  filePath: string;
+}
+
+export interface SaleVehicle {
+  id: number;
+  title: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  mileage: number | null;
+  fuelType: string | null;
+  transmission: string | null;
+  engineCc: number | null;
+  color: string | null;
+  condition: string | null;
+  price: number;
+  description: string | null;
+  coverPath: string;
+  status: SaleVehicleStatus;
+  sortOrder: number;
+  createdAt: string | null;
+  /** Extra gallery photos — at most 5 */
+  images: SaleVehicleImage[];
+}
